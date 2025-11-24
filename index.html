@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StudyPal v0.9.6 防重版</title>
+    <title>StudyPal v0.9.7 备份修复版</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* --- 核心变量 --- */
@@ -205,7 +205,7 @@
 </div>
 
 <div class="sidebar" id="sidebar">
-    <h1>StudyPal <span class="ver">v0.9.6</span></h1>
+    <h1>StudyPal <span class="ver">v0.9.7</span></h1>
     
     <div class="task-section">
         <div class="section-header">
@@ -333,7 +333,7 @@
 </div>
 
 <script>
-    // --- StudyPal v0.9.6 防重逻辑 ---
+    // --- StudyPal v0.9.7 Logic ---
 
     const TEST_KEY = "";
     const DEFAULT_PRESETS = [
@@ -354,11 +354,22 @@
 
     window.onload = () => {
         loadState();
+        
+        // 迁移逻辑
         if (!state.folders || state.folders.length === 0) {
             state.folders = [{ id: 'default', name: '默认' }];
             state.currentFolderId = 'default';
         }
-        if (!state.apiKeys.siliconflow) state.apiKeys.siliconflow = TEST_KEY;
+        
+        if (!state.apiKeys || typeof state.apiKeys !== 'object') {
+            state.apiKeys = { siliconflow: '', deepseek: '', gemini: '', openai: '', custom: '' };
+        }
+        
+        // 如果 SiliconFlow Key 为空，预填
+        if (!state.apiKeys.siliconflow || state.apiKeys.siliconflow.trim() === '') {
+            state.apiKeys.siliconflow = TEST_KEY;
+        }
+        
         if (!state.presets || state.presets.length === 0) state.presets = DEFAULT_PRESETS;
 
         document.getElementById('providerSelect').value = state.provider;
@@ -430,43 +441,22 @@
         });
     }
 
-    // --- 核心修复：addTask 防重逻辑 ---
+    // --- 修复：AI 任务防重 ---
     function addTask(txt, targetId, isFromAI = false) {
-        const input = document.getElementById('newTaskInput'); 
-        const t = txt || input.value.trim();
+        const input = document.getElementById('newTaskInput'); const t = txt || input.value.trim();
         if (!t) return;
-        
-        const targetFolder = targetId || state.currentFolderId;
+        const folder = targetId || state.currentFolderId;
 
-        // 防重检测：检查当前文件夹内是否有完全相同的未完成任务
-        const isDuplicate = state.tasks.some(task => 
-            task.text === t && 
-            (task.folderId || 'default') === targetFolder && 
-            !task.done
-        );
-
-        if (isDuplicate) {
-            if (isFromAI) {
-                console.log("AI 试图添加重复任务，已拦截");
-                return; // AI 触发的重复直接静默忽略
-            }
-            // 用户手动添加则询问
-            if (!confirm("该任务已存在，确定要重复添加吗？")) return; 
+        // 防重检测
+        const duplicate = state.tasks.some(k => k.text === t && (k.folderId||'default') === folder && !k.done);
+        if (duplicate) {
+            if (isFromAI) return; // AI静默跳过
+            if (!confirm("任务已存在，确定添加？")) return;
         }
 
         state.tasks.forEach(k => k.active = false);
-        state.tasks.push({ 
-            id: Date.now(), 
-            text: t, 
-            done: false, 
-            active: true, 
-            selected: false, 
-            folderId: targetFolder 
-        });
-        
-        if (!txt) input.value = ''; 
-        renderTasks(); 
-        saveState();
+        state.tasks.push({ id: Date.now(), text: t, done: false, active: true, selected: false, folderId: folder });
+        if (!txt) input.value = ''; renderTasks(); saveState();
     }
 
     function toggleDone(id, e) { e.stopPropagation(); const t = state.tasks.find(k=>k.id===id); if(t) t.done=!t.done; renderTasks(); saveState(); }
@@ -517,7 +507,7 @@
         const bar = document.getElementById('loadingBar'); bar.classList.add('active');
         let apiHistory = JSON.parse(JSON.stringify(state.history));
         if (isHidden) { apiHistory.push({ role: 'user', content: text }); addMessage('system', text); }
-        const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]. ONLY for new requests.";
+        const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]";
         try {
             let url, headers = { 'Content-Type': 'application/json' }, body;
             const currentKey = state.apiKeys[state.provider];
@@ -547,10 +537,9 @@
             const match = reply.match(/\[ADD_TASK:\s*(.*?)\]/);
             if (match) {
                 const newTask = match[1].trim();
-                // 核心修复：传入 isFromAI=true
-                addTask(newTask, 'default', true); 
+                addTask(newTask, 'default', true); // 传入 true 开启防重
                 reply = reply.replace(match[0], "").trim();
-                addMessage('system', `✨ AI 已自动添加任务: "${newTask}"`);
+                addMessage('system', `✨ AI 添加任务: "${newTask}"`);
             }
             addMessage('ai', reply); state.history.push({ role: 'assistant', content: reply }); saveState();
         } catch (e) { addMessage('system', "❌ " + e.message); } 
@@ -593,14 +582,52 @@
     function renderPresets() { const c = document.getElementById('presetButtons'); c.innerHTML = ''; state.presets.forEach((p, i) => { const tag = document.createElement('div'); tag.className = 'preset-tag'; tag.innerHTML = `<span>${p.name}</span> <span class="del-btn">×</span>`; tag.onclick = () => { state.prompt = p.prompt; document.getElementById('systemPrompt').value = p.prompt; saveState(); }; tag.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); if(confirm("删除?")) { state.presets.splice(i,1); renderPresets(); saveState(); } }; c.appendChild(tag); }); }
     function saveCurrentAsPreset() { const name = document.getElementById('newPresetName').value.trim(); if(!name) return; state.presets.push({ name, prompt: document.getElementById('systemPrompt').value }); document.getElementById('newPresetName').value = ''; renderPresets(); saveState(); }
     
-    function exportData() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v0.9.6.json"; a.click(); }
-    function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { try { state = JSON.parse(e.target.result); location.reload(); } catch(e){alert("无效");} }; r.readAsText(f); }
-    function hardReset() { if(confirm("重置?")) { localStorage.removeItem('studyPal_v0.8.1'); location.reload(); } }
+    // --- 修复：全量备份 ---
+    function exportData() { 
+        saveState(); // 先保存当前内存状态
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); 
+        a.download = "studypal_backup_v0.9.7.json"; 
+        a.click(); 
+    }
+    
+    // --- 修复：全量恢复 ---
+    function importData(input) { 
+        const f = input.files[0]; 
+        if(!f) return; 
+        const r = new FileReader(); 
+        r.onload = (e) => { 
+            try { 
+                const data = JSON.parse(e.target.result);
+                // 强行写入硬盘
+                localStorage.setItem('studyPal_v0.9.7', JSON.stringify(data));
+                alert("恢复成功，页面即将刷新...");
+                location.reload(); 
+            } catch(e){ alert("备份文件无效"); } 
+        }; 
+        r.readAsText(f); 
+    }
+    
+    function hardReset() { if(confirm("重置?")) { localStorage.removeItem('studyPal_v0.9.7'); location.reload(); } }
     function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
     function clearHistory() { if(confirm("清空?")) { state.history=[]; renderHistory(); saveState(); } }
     function renderHistory() { document.getElementById('chatHistory').innerHTML=''; state.history.forEach(m=>addMessage(m.role==='user'?'user':'ai', m.content)); }
-    function saveState() { state.model = document.getElementById('modelNameInput').value; state.prompt = document.getElementById('systemPrompt').value; localStorage.setItem('studyPal_v0.8.1', JSON.stringify(state)); }
-    function loadState() { const s = localStorage.getItem('studyPal_v0.8.1'); if(s) state = { ...state, ...JSON.parse(s) }; }
+    
+    function saveState() { 
+        state.model = document.getElementById('modelNameInput').value; 
+        state.prompt = document.getElementById('systemPrompt').value; 
+        // 使用最新版本 Key 0.9.7
+        localStorage.setItem('studyPal_v0.9.7', JSON.stringify(state)); 
+    }
+    
+    function loadState() { 
+        // 尝试加载新版数据
+        let s = localStorage.getItem('studyPal_v0.9.7'); 
+        // 兼容：如果没有新版，尝试加载旧版 v0.8.1 并迁移
+        if (!s) s = localStorage.getItem('studyPal_v0.8.1');
+        
+        if(s) state = { ...state, ...JSON.parse(s) }; 
+    }
 </script>
 </body>
 </html>
