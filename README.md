@@ -16,9 +16,9 @@
 ##  如何使用
 1.  点击上面的 **在线使用** 链接。
 2.  点击左下角的 **⚙️ 设置**。
-3.  填入你的 API Key（支持 **硅基流动 / DeepSeek / OpenAI / Gemini /自定义**）。        
+3.  填入你的 API Key（支持 **硅基流动 / DeepSeek / OpenAI / Gemini /自定义**）。          
     * *如果你没有 Key，可以用硅基流动（SiliconFlow）有免费额度（能用我的邀请链接我会很开心的🥹），国内直连速度快。*
-    * 硅基流动注册链接：https://cloud.siliconflow.cn/i/dNmJ6W0N
+    * 硅基流动注册链接：https://cloud.siliconflow.cn/i/dNmJ6W0N  
 4.  开始聊天或计时！
 
 ---
@@ -26,7 +26,7 @@
 ## 🛠️ 技术栈
 
 * **核心**：原生 JavaScript (Vanilla JS)
-* **样式**：CSS3 (iOS Design Style)
+* **样式**：CSS3   
 * **部署**：GitHub Pages
 * **特性**：LocalStorage 本地存储、Markdown 渲染、响应式布局
 
