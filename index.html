@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StudyPal v0.9.6 防重版</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- 核心变量 --- */
+        :root {
+            --primary: #007AFF;
+            --primary-bg: rgba(0, 122, 255, 0.1);
+            --bg-sidebar: #F2F2F7;
+            --bg-main: #FFFFFF;
+            --text: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --border: #E5E5EA;
+            --sidebar-w: 340px;
+            --radius: 12px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.04);
+            --shadow-hover: 0 6px 16px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background-color: var(--bg-main);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: var(--text);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { 
+                position: fixed; top: 0; left: 0; bottom: 0; width: 280px !important; z-index: 1000;
+                transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); 
+                box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(2px); z-index: 999; }
+            .mobile-overlay.show { display: block; }
+            .chat-container { width: 100%; height: 100vh; }
+            .mobile-menu-btn { display: flex !important; }
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: var(--sidebar-w);
+            background-color: var(--bg-sidebar);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(0,0,0,0.05);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0 0 24px 0; font-size: 1.6rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: #000; }
+        .ver { font-size: 0.7rem; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; color: var(--text-secondary); font-weight: 600; }
+
+        /* 通用控件 */
+        button { border: none; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        button:active { transform: scale(0.96); }
+
+        .btn-primary { background: var(--primary); color: white; border-radius: var(--radius); font-weight: 500; }
+        .btn-primary:hover { background: #0062cc; }
+        
+        .btn-secondary { background: #FFFFFF; color: var(--text); border: 1px solid rgba(0,0,0,0.05); border-radius: var(--radius); }
+        .btn-secondary:hover { background: #F9F9F9; border-color: rgba(0,0,0,0.1); }
+        
+        .btn-sm { font-size: 0.85rem; padding: 6px 12px; }
+        
+        /* 输入框容器 */
+        .input-group {
+            display: flex; align-items: center; gap: 8px;
+            background: #FFFFFF; padding: 4px; border-radius: var(--radius);
+            border: 1px solid transparent; box-shadow: var(--shadow);
+            transition: 0.2s;
+        }
+        .input-group:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+        
+        input, select, textarea { 
+            border: none; background: transparent; padding: 8px 10px; font-size: 0.9rem; 
+            color: var(--text); font-family: inherit; width: 100%; outline: none;
+        }
+
+        /* --- 任务清单 --- */
+        .task-section { margin-bottom: 30px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; text-transform: uppercase; }
+
+        .folder-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .folder-tab { 
+            padding: 6px 14px; border-radius: 18px; font-size: 0.85rem; cursor: pointer; 
+            background: rgba(0,0,0,0.05); color: var(--text); transition: 0.2s; user-select: none;
+            display: flex; align-items: center; gap: 6px; border: 1px solid transparent;
+        }
+        .folder-tab:hover { background: rgba(0,0,0,0.08); }
+        .folder-tab.active { background: var(--text); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .folder-del { opacity: 0.5; font-size: 1.1rem; line-height: 0.8; padding: 2px; border-radius: 50%; }
+        .folder-del:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+
+        .task-list { list-style: none; padding: 0; margin: 12px 0; max-height: 240px; overflow-y: auto; padding-right: 4px; }
+        .task-list::-webkit-scrollbar { width: 4px; }
+        .task-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+
+        .task-item {
+            display: flex; align-items: center; background: #FFFFFF; 
+            margin-bottom: 8px; padding: 12px 14px; border-radius: var(--radius);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03); border: 1px solid transparent;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .task-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+        .task-item.active-task { border-left: 4px solid var(--primary); background: #F5F9FF; }
+        .task-item.selected { background: #FFF8E1; border-color: #FFD54F; }
+        .task-item.done { opacity: 0.5; text-decoration: line-through; background: #f9f9f9; box-shadow: none; }
+
+        .chk-select { margin-right: 12px; width: 18px; height: 18px; accent-color: var(--primary); pointer-events: none; }
+        .task-text { flex: 1; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .action-icon { padding: 4px; border-radius: 4px; color: #C7C7CC; font-size: 1.1rem; transition: 0.2s; margin-left: 8px;}
+        .action-icon:hover { background: rgba(0,0,0,0.05); color: var(--primary); }
+        .action-icon.del:hover { color: #FF3B30; background: rgba(255,59,48,0.1); }
+
+        .batch-bar { display: none; background: #1C1C1E; color: white; padding: 10px 16px; border-radius: 12px; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 0.85rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+        .batch-bar.show { display: flex; animation: slideUp 0.2s; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+        /* --- 计时器 --- */
+        .timer-box { background: #FFFFFF; padding: 24px; border-radius: 20px; box-shadow: var(--shadow); text-align: center; margin-bottom: 30px; }
+        .mode-tabs { display: flex; background: #F2F2F7; padding: 4px; border-radius: 12px; margin-bottom: 20px; }
+        .mode-tab { flex: 1; text-align: center; padding: 8px; font-size: 0.85rem; cursor: pointer; border-radius: 9px; color: var(--text-secondary); font-weight: 500; transition: 0.2s; }
+        .mode-tab:hover { color: #000; }
+        .mode-tab.active { background: #FFFFFF; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: 600; }
+        .timer-display { font-size: 4.5rem; font-weight: 200; color: var(--text); margin: 10px 0; font-variant-numeric: tabular-nums; letter-spacing: -2px; line-height: 1; }
+        .timer-input { width: 80px; padding: 0 10px; border: 1px solid transparent; border-bottom: 2px solid #E5E5EA; font-size: 1.2rem; text-align: center; font-weight: bold; color: var(--primary); background: transparent; margin: 0 5px; }
+        .timer-input:focus { border-bottom-color: var(--primary); outline: none; }
+
+        /* --- 设置区 --- */
+        .settings-group { border-top: 1px solid var(--border); padding-top: 24px; margin-top: auto; }
+        
+        .preset-tag { 
+            background: #F2F2F7; border: 1px solid #E5E5EA; padding: 6px 12px; 
+            border-radius: 16px; font-size: 0.8rem; cursor: pointer; 
+            display: inline-flex; align-items: center; gap: 6px; color: var(--text); transition: 0.2s;
+        }
+        .preset-tag:hover { border-color: var(--primary); background: #EBF5FF; color: var(--primary); }
+        .del-btn { opacity: 0.4; font-size: 1rem; font-weight: bold; line-height: 0.8; }
+        .del-btn:hover { opacity: 1; color: #FF3B30; }
+
+        .btn-svg {
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+            background: #FFFFFF; border: 1px solid var(--border);
+            color: #666; cursor: pointer; transition: 0.2s;
+        }
+        .btn-svg:hover { border-color: var(--primary); color: var(--primary); background: #F9F9F9; }
+        .btn-svg svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .api-row { display: flex; gap: 8px; align-items: center; }
+        .api-input-container { flex: 1; background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px; display: flex; align-items: center; }
+
+        /* --- 聊天区 --- */
+        .chat-container { flex: 1; display: flex; flex-direction: column; background: #FFFFFF; position: relative; }
+        .chat-header { padding: 16px 24px; border-bottom: 1px solid #F2F2F7; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); z-index: 10; }
+        .mobile-menu-btn { display: none; font-size: 1.4rem; cursor: pointer; padding: 5px; margin-right: 10px; color: var(--primary); }
+        
+        .chat-history { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .message { max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .message.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .message.ai { align-self: flex-start; background: #F2F2F7; color: #000; border-bottom-left-radius: 4px; }
+        .message.system { align-self: center; background: #F9F9F9; color: var(--text-secondary); font-size: 0.8rem; padding: 6px 12px; border-radius: 20px; margin: 10px 0; box-shadow: none; }
+        
+        .message p { margin: 0 0 8px 0; } .message p:last-child { margin: 0; }
+        .message code { background: rgba(0,0,0,0.06); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.9em; }
+        .message.user code { background: rgba(255,255,255,0.2); }
+        .message pre { background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
+
+        .input-area { padding: 20px 24px; border-top: 1px solid #F2F2F7; display: flex; gap: 12px; background: #FFFFFF; }
+        #userInput { background: #F2F2F7; border-radius: 24px; padding: 14px 20px; font-size: 1rem; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-box { background: #FFF; padding: 24px; border-radius: 20px; width: 90%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); transform: scale(0.95); animation: popIn 0.2s forwards; }
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .loading-bar { height: 3px; width: 100%; position: absolute; top: 0; left: 0; display: none; background: rgba(0,122,255,0.1); }
+        .loading-bar.active { display: block; }
+        .loading-bar::after { content: ''; position: absolute; height: 100%; width: 30%; background: var(--primary); animation: load 1.5s infinite ease-in-out; }
+        @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
+    </style>
+</head>
+<body>
+
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+<div class="modal-overlay" id="moveModal">
+    <div class="modal-box">
+        <h3 style="margin-top:0; font-size:1.1rem;">移动任务到...</h3>
+        <select id="moveTargetFolder" style="margin-bottom:20px; width:100%; padding:12px; background:#F2F2F7; border-radius:10px;"></select>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn-secondary btn-sm" onclick="closeModal()">取消</button>
+            <button class="btn-primary btn-sm" onclick="confirmMove()">移动</button>
+        </div>
+    </div>
+</div>
+
+<div class="sidebar" id="sidebar">
+    <h1>StudyPal <span class="ver">v0.9.6</span></h1>
+    
+    <div class="task-section">
+        <div class="section-header">
+            <span>任务清单</span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-secondary btn-sm" id="batchToggleBtn" onclick="toggleBatchMode()">多选</button>
+            </div>
+        </div>
+        
+        <div class="folder-container">
+            <div class="folder-bar" id="folderBar" style="display:contents;"></div>
+            <button class="btn-secondary" onclick="addFolder()" style="width:28px;height:28px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+
+        <div class="input-group" style="margin-bottom:15px; padding-right:4px;">
+            <input type="text" id="newTaskInput" placeholder="添加新任务..." onkeypress="if(event.key==='Enter') addTask()">
+            <button class="btn-primary" onclick="addTask()" style="width:32px; height:32px; border-radius:8px; display:flex;align-items:center;justify-content:center;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+        </div>
+        
+        <ul class="task-list" id="taskListUi"></ul>
+
+        <div class="batch-bar" id="batchBar">
+            <span>已选 <span id="batchCount">0</span> 项</span>
+            <div style="display:flex; gap:10px;">
+                <span style="cursor:pointer;" onclick="openMoveModal()">移动</span>
+                <span style="cursor:pointer; color:#ff6b6b;" onclick="batchDelete()">删除</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timer-box">
+        <div class="mode-tabs">
+            <div class="mode-tab active" id="tab-pomodoro" onclick="switchMode('pomodoro')">专注</div>
+            <div class="mode-tab" id="tab-stopwatch" onclick="switchMode('stopwatch')">正计时</div>
+        </div>
+        <div class="timer-display" id="timerDisplay">25:00</div>
+        <div id="pomodoroInput" class="timer-input-wrapper">
+            设定 <input type="number" id="customTimeInput" class="timer-input" value="25" min="1" onchange="validateTime()"> 分钟
+        </div>
+        <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <button class="btn-primary btn-sm" onclick="toggleTimer()" id="startBtn" style="padding:12px;">开始</button>
+            <button class="btn-secondary btn-sm" onclick="resetTimer()" style="padding:12px;">重置</button>
+        </div>
+    </div>
+
+    <div class="mobile-toggle" onclick="toggleSettings()">⚙️ 设置与数据</div>
+
+    <div class="settings-group" id="settingsGroup">
+        <label>人设预设</label>
+        <div class="preset-container" id="presetButtons"></div>
+        <div class="input-group" style="margin-bottom:12px; padding-right:4px;">
+            <input type="text" id="newPresetName" placeholder="新预设名">
+            <button class="btn-svg" onclick="saveCurrentAsPreset()" title="保存预设" style="width:32px; height:32px; border:none; background:#F2F2F7;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#666"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+            </button>
+        </div>
+
+        <label>Prompt</label>
+        <div class="input-group" style="margin-bottom:12px; padding:0;">
+            <textarea id="systemPrompt" rows="2" onchange="saveState()" style="margin:0; padding:10px;"></textarea>
+        </div>
+
+        <div style="background:white; padding:16px; border-radius:16px; border:1px solid #E5E5EA; margin-bottom:20px;">
+            <label style="margin-top:0">模型服务商</label>
+            <div class="input-group" style="margin-bottom:10px;">
+                <select id="providerSelect" onchange="changeProvider()" style="margin:0;">
+                    <option value="siliconflow">SiliconFlow</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            
+            <div id="customUrlGroup" style="display:none; margin-bottom:10px;">
+                <div class="input-group"><input type="text" id="apiBaseUrl" placeholder="API URL" onchange="saveAPIKey()"></div>
+            </div>
+            
+            <div class="input-group" style="margin-bottom:10px;">
+                <input type="password" id="apiKeyInput" placeholder="API Key" onchange="saveAPIKey()">
+            </div>
+            
+            <label>模型 ID</label>
+            <div class="api-row">
+                <div class="api-input-container">
+                    <input list="modelList" id="modelNameInput" placeholder="选择或输入..." onchange="saveState()">
+                    <datalist id="modelList"></datalist>
+                </div>
+                <button class="btn-svg" onclick="fetchModels()" title="拉取列表">
+                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                </button>
+            </div>
+            <small id="fetchStatus" style="font-size:0.7rem; color:#aaa; display:block; margin-top:4px; height:15px;"></small>
+        </div>
+
+        <div class="row" style="justify-content:space-between; margin-bottom:20px;">
+            <button class="btn-secondary btn-sm" onclick="exportData()">备份数据</button>
+            <button class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">恢复数据</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(this)">
+        </div>
+        <div style="text-align:center;">
+            <span onclick="hardReset()" style="font-size:0.75rem; color:#FF3B30; cursor:pointer; font-weight:500;">重置所有数据</span>
+        </div>
+    </div>
+</div>
+
+<div class="chat-container">
+    <div class="loading-bar" id="loadingBar"></div>
+    <div class="chat-header">
+        <div style="display:flex; align-items:center;">
+            <div class="mobile-menu-btn" onclick="openMobileSidebar()">☰</div>
+            <span style="font-weight:700; font-size:1.1rem;">AI 助手 <small id="statusText" style="color:#8E8E93; font-weight:normal; font-size:0.8rem; margin-left:5px;">(在线)</small></span>
+        </div>
+        <button class="btn-secondary btn-sm" onclick="clearHistory()" style="background:transparent; color:var(--primary);">清空</button>
+    </div>
+    <div class="chat-history" id="chatHistory"></div>
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button class="btn-primary btn-icon" onclick="sendMessage()" style="width:44px; height:44px; border-radius:22px; flex-shrink:0;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+    // --- StudyPal v0.9.6 防重逻辑 ---
+
+    const TEST_KEY = "";
+    const DEFAULT_PRESETS = [
+        { name: "默认", prompt: "你是一个严格但风趣的学习教练。如果番茄钟结束，请主动根据用户的任务询问进度。" },
+        { name: "法学", prompt: "你是一位资深的中国法学教授。请用苏格拉底教学法，通过反问来检验我对法律概念的理解。" }
+    ];
+
+    let state = {
+        history: [], tasks: [], folders: [], currentFolderId: 'default',
+        presets: [], provider: 'siliconflow',
+        apiKeys: { siliconflow: '', deepseek: '', gemini: '', openai: '', custom: '' },
+        model: 'deepseek-ai/DeepSeek-V3.2-Exp', baseUrl: '',
+        prompt: DEFAULT_PRESETS[0].prompt
+    };
+
+    let isBatchMode = false; 
+    let timer = { interval: null, timeLeft: 25 * 60, elapsed: 0, isRunning: false, mode: 'pomodoro' };
+
+    window.onload = () => {
+        loadState();
+        if (!state.folders || state.folders.length === 0) {
+            state.folders = [{ id: 'default', name: '默认' }];
+            state.currentFolderId = 'default';
+        }
+        if (!state.apiKeys.siliconflow) state.apiKeys.siliconflow = TEST_KEY;
+        if (!state.presets || state.presets.length === 0) state.presets = DEFAULT_PRESETS;
+
+        document.getElementById('providerSelect').value = state.provider;
+        updateProviderUI();
+        renderFolders(); renderTasks(); renderPresets(); renderHistory(); switchMode(timer.mode);
+    };
+
+    function openMobileSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('mobileOverlay').classList.add('show'); }
+    function closeMobileSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('mobileOverlay').classList.remove('show'); }
+
+    function toggleBatchMode() {
+        isBatchMode = !isBatchMode;
+        const btn = document.getElementById('batchToggleBtn');
+        if (isBatchMode) { btn.style.background = "var(--primary)"; btn.style.color="white"; btn.innerText = "完成"; } 
+        else { btn.style.background = ""; btn.style.color=""; btn.innerText = "多选"; state.tasks.forEach(t => t.selected = false); }
+        renderTasks();
+    }
+
+    function renderTasks() {
+        const ul = document.getElementById('taskListUi'); ul.innerHTML = '';
+        const currentTasks = state.tasks.filter(t => (t.folderId || 'default') === state.currentFolderId);
+        
+        if (currentTasks.length === 0) ul.innerHTML = '<div style="color:#C7C7CC;font-size:0.8rem;text-align:center;padding:20px;">(暂无任务)</div>';
+
+        const selectedCount = currentTasks.filter(t => t.selected).length;
+        const batchBar = document.getElementById('batchBar');
+        if (isBatchMode && selectedCount > 0) {
+            batchBar.classList.add('show');
+            document.getElementById('batchCount').innerText = selectedCount;
+        } else {
+            batchBar.classList.remove('show');
+        }
+
+        currentTasks.forEach(t => {
+            const li = document.createElement('li');
+            let classes = 'task-item';
+            if (t.active) classes += ' active-task';
+            if (t.done) classes += ' done';
+            if (t.selected && isBatchMode) classes += ' selected'; 
+            li.className = classes;
+            
+            li.onclick = (e) => {
+                e.stopPropagation();
+                if (isBatchMode) { t.selected = !t.selected; renderTasks(); } 
+                else { state.tasks.forEach(k => k.active = (k.id === t.id)); renderTasks(); saveState(); }
+            };
+
+            if (isBatchMode) {
+                const chk = document.createElement('input');
+                chk.type = 'checkbox'; chk.className = 'chk-select'; chk.checked = !!t.selected;
+                chk.onclick = (e) => { e.stopPropagation(); t.selected = !t.selected; renderTasks(); };
+                li.appendChild(chk);
+            }
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'task-text'; textSpan.innerText = t.text;
+            li.appendChild(textSpan);
+
+            if (!isBatchMode) {
+                const actions = document.createElement('div');
+                actions.className = 'task-actions';
+                actions.innerHTML = `
+                    <span class="action-icon" onclick="toggleDone(${t.id}, event)">${t.done?'↩':'✓'}</span>
+                    <span class="action-icon del" onclick="delTask(${t.id}, event)">×</span>
+                `;
+                li.appendChild(actions);
+            }
+            ul.appendChild(li);
+        });
+    }
+
+    // --- 核心修复：addTask 防重逻辑 ---
+    function addTask(txt, targetId, isFromAI = false) {
+        const input = document.getElementById('newTaskInput'); 
+        const t = txt || input.value.trim();
+        if (!t) return;
+        
+        const targetFolder = targetId || state.currentFolderId;
+
+        // 防重检测：检查当前文件夹内是否有完全相同的未完成任务
+        const isDuplicate = state.tasks.some(task => 
+            task.text === t && 
+            (task.folderId || 'default') === targetFolder && 
+            !task.done
+        );
+
+        if (isDuplicate) {
+            if (isFromAI) {
+                console.log("AI 试图添加重复任务，已拦截");
+                return; // AI 触发的重复直接静默忽略
+            }
+            // 用户手动添加则询问
+            if (!confirm("该任务已存在，确定要重复添加吗？")) return; 
+        }
+
+        state.tasks.forEach(k => k.active = false);
+        state.tasks.push({ 
+            id: Date.now(), 
+            text: t, 
+            done: false, 
+            active: true, 
+            selected: false, 
+            folderId: targetFolder 
+        });
+        
+        if (!txt) input.value = ''; 
+        renderTasks(); 
+        saveState();
+    }
+
+    function toggleDone(id, e) { e.stopPropagation(); const t = state.tasks.find(k=>k.id===id); if(t) t.done=!t.done; renderTasks(); saveState(); }
+    function delTask(id, e) { e.stopPropagation(); state.tasks = state.tasks.filter(k=>k.id!==id); renderTasks(); saveState(); }
+    function batchDelete() { if(!confirm("删除选中项？")) return; state.tasks = state.tasks.filter(t => !(t.selected && (t.folderId||'default') === state.currentFolderId)); renderTasks(); saveState(); }
+    
+    function openMoveModal() {
+        const sel = document.getElementById('moveTargetFolder'); sel.innerHTML = '';
+        state.folders.forEach(f => { if (f.id !== state.currentFolderId) { const opt = document.createElement('option'); opt.value = f.id; opt.innerText = f.name; sel.appendChild(opt); } });
+        if(sel.options.length === 0) { alert("无其他文件夹"); return; }
+        document.getElementById('moveModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('moveModal').style.display = 'none'; }
+    function confirmMove() {
+        const targetId = document.getElementById('moveTargetFolder').value;
+        state.tasks.forEach(t => { if ((t.folderId||'default') === state.currentFolderId && t.selected) { t.folderId = targetId; t.selected = false; } });
+        closeModal(); renderTasks(); saveState();
+    }
+
+    function renderFolders() {
+        const bar = document.getElementById('folderBar'); bar.innerHTML = '';
+        state.folders.forEach(f => {
+            const tab = document.createElement('div');
+            tab.className = `folder-tab ${f.id === state.currentFolderId ? 'active' : ''}`;
+            let html = `<span>${f.name}</span>`;
+            if (f.id !== 'default') html += `<span class="folder-del" onclick="deleteFolder('${f.id}', event)">×</span>`;
+            tab.innerHTML = html;
+            tab.onclick = () => { state.currentFolderId = f.id; isBatchMode = false; renderFolders(); renderTasks(); saveState(); };
+            bar.appendChild(tab);
+        });
+    }
+    function addFolder() { const name = prompt("新文件夹名称:"); if (name && name.trim()) { const id = 'f_' + Date.now(); state.folders.push({ id, name: name.trim() }); state.currentFolderId = id; renderFolders(); renderTasks(); saveState(); } }
+    function deleteFolder(id, e) { e.stopPropagation(); if (confirm("删除此文件夹？")) { state.folders = state.folders.filter(f => f.id !== id); state.tasks = state.tasks.filter(t => t.folderId !== id); if (state.currentFolderId === id) state.currentFolderId = 'default'; renderFolders(); renderTasks(); saveState(); } }
+
+    function changeProvider() { state.provider = document.getElementById('providerSelect').value; updateProviderUI(); }
+    function updateProviderUI() {
+        const p = state.provider;
+        document.getElementById('customUrlGroup').style.display = (p === 'custom') ? 'block' : 'none';
+        if(p === 'custom') document.getElementById('apiBaseUrl').value = state.baseUrl;
+        document.getElementById('apiKeyInput').value = state.apiKeys[p] || '';
+        const defaults = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini' };
+        if (defaults[p]) { state.model = defaults[p]; document.getElementById('modelNameInput').value = state.model; }
+        saveState();
+    }
+    function saveAPIKey() { state.apiKeys[state.provider] = document.getElementById('apiKeyInput').value; if (state.provider === 'custom') state.baseUrl = document.getElementById('apiBaseUrl').value; saveState(); }
+
+    async function sendMessageInternal(text, isHidden = false) {
+        const bar = document.getElementById('loadingBar'); bar.classList.add('active');
+        let apiHistory = JSON.parse(JSON.stringify(state.history));
+        if (isHidden) { apiHistory.push({ role: 'user', content: text }); addMessage('system', text); }
+        const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]. ONLY for new requests.";
+        try {
+            let url, headers = { 'Content-Type': 'application/json' }, body;
+            const currentKey = state.apiKeys[state.provider];
+            if (!currentKey) throw new Error("请设置 API Key");
+
+            if (state.provider === 'gemini') {
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${currentKey}`;
+                const contents = [{ role: 'user', parts: [{ text: "System: " + sys }] }, ...apiHistory.map(m => ({ role: m.role==='user'?'user':'model', parts: [{ text: m.content }] }))];
+                body = JSON.stringify({ contents });
+            } else {
+                let base = "";
+                if (state.provider === 'custom') base = state.baseUrl;
+                else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn";
+                else if (state.provider === 'deepseek') base = "https://api.deepseek.com";
+                else base = "https://api.openai.com";
+                if (!base.endsWith('/v1')) base += "/v1";
+                url = base + "/chat/completions";
+                headers['Authorization'] = `Bearer ${currentKey}`;
+                const messages = [{ role: 'system', content: sys }, ...apiHistory];
+                body = JSON.stringify({ model: state.model, messages, temperature: 0.7 });
+            }
+            const res = await fetch(url, { method: 'POST', headers, body });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
+            
+            let reply = (state.provider === 'gemini') ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
+            const match = reply.match(/\[ADD_TASK:\s*(.*?)\]/);
+            if (match) {
+                const newTask = match[1].trim();
+                // 核心修复：传入 isFromAI=true
+                addTask(newTask, 'default', true); 
+                reply = reply.replace(match[0], "").trim();
+                addMessage('system', `✨ AI 已自动添加任务: "${newTask}"`);
+            }
+            addMessage('ai', reply); state.history.push({ role: 'assistant', content: reply }); saveState();
+        } catch (e) { addMessage('system', "❌ " + e.message); } 
+        finally { bar.classList.remove('active'); }
+    }
+
+    function switchMode(mode) { timer.mode = mode; resetTimer(); document.getElementById('tab-pomodoro').className = mode === 'pomodoro' ? 'mode-tab active' : 'mode-tab'; document.getElementById('tab-stopwatch').className = mode === 'stopwatch' ? 'mode-tab active' : 'mode-tab'; document.getElementById('pomodoroInput').style.display = mode === 'pomodoro' ? 'flex' : 'none'; updateDisplay(); }
+    function validateTime() { const el = document.getElementById('customTimeInput'); let val = parseInt(el.value); if (isNaN(val) || val < 1) val = 1; el.value = val; resetTimer(); }
+    function toggleTimer() { const btn = document.getElementById('startBtn'); if (timer.isRunning) { clearInterval(timer.interval); timer.isRunning = false; btn.innerText = "继续"; } else { if (timer.mode === 'pomodoro' && timer.timeLeft <= 0) resetTimer(); timer.isRunning = true; btn.innerText = "暂停"; timer.interval = setInterval(() => { if (timer.mode === 'pomodoro') { if (timer.timeLeft > 0) { timer.timeLeft--; updateDisplay(); } else { finishPomodoro(); } } else { timer.elapsed++; updateDisplay(); } }, 1000); } }
+    function resetTimer() { clearInterval(timer.interval); timer.isRunning = false; if (timer.mode === 'pomodoro') { const mins = parseInt(document.getElementById('customTimeInput').value)||25; timer.timeLeft = mins * 60; } else { timer.elapsed = 0; } document.getElementById('startBtn').innerText = "开始"; updateDisplay(); }
+    function updateDisplay() { let s = timer.mode === 'pomodoro' ? timer.timeLeft : timer.elapsed; const m = Math.floor(s / 60).toString().padStart(2, '0'); const sec = (s % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `${m}:${sec}`; document.title = timer.isRunning ? `(${m}m) StudyPal` : 'StudyPal'; }
+    function finishPomodoro() { resetTimer(); const taskName = state.tasks.find(t => t.active)?.text || "无"; sendMessageInternal(`[系统通知] 番茄钟结束(任务:${taskName})。请考核我。`, true); alert("时间到！"); }
+
+    async function fetchModels() {
+        const key = state.apiKeys[state.provider]; const status = document.getElementById('fetchStatus');
+        if (!key) { alert("Key 为空"); return; } status.innerText = "获取中...";
+        try {
+            let url, headers = {};
+            if (state.provider === 'gemini') url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+            else {
+                let base = "";
+                if (state.provider === 'custom') base = state.baseUrl;
+                else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn";
+                else if (state.provider === 'deepseek') base = "https://api.deepseek.com";
+                else base = "https://api.openai.com";
+                if (!base.endsWith('/v1')) base += "/v1"; url = base + "/models"; headers['Authorization'] = `Bearer ${key}`;
+            }
+            const res = await fetch(url, { headers }); const data = await res.json();
+            let list = [];
+            if (data.models) list = data.models.map(m => m.name.replace('models/', '')); else if (data.data) list = data.data.map(m => m.id);
+            const dl = document.getElementById('modelList'); dl.innerHTML = '';
+            list.forEach(id => { const op = document.createElement('option'); op.value = id; dl.appendChild(op); });
+            status.innerText = `✅ 成功 (${list.length})`;
+        } catch (e) { status.innerText = "❌ 失败"; }
+    }
+
+    function addMessage(role, text) { const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = `message ${role}`; if (role === 'system') msg.innerHTML = text; else { try { msg.innerHTML = marked.parse(text); } catch (e) { msg.innerText = text; } } div.appendChild(msg); div.scrollTop = div.scrollHeight; }
+    async function sendMessage() { const input = document.getElementById('userInput'); const text = input.value.trim(); if (!text) return; input.value = ''; addMessage('user', text); state.history.push({ role: 'user', content: text }); saveState(); await sendMessageInternal(text); }
+    
+    function renderPresets() { const c = document.getElementById('presetButtons'); c.innerHTML = ''; state.presets.forEach((p, i) => { const tag = document.createElement('div'); tag.className = 'preset-tag'; tag.innerHTML = `<span>${p.name}</span> <span class="del-btn">×</span>`; tag.onclick = () => { state.prompt = p.prompt; document.getElementById('systemPrompt').value = p.prompt; saveState(); }; tag.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); if(confirm("删除?")) { state.presets.splice(i,1); renderPresets(); saveState(); } }; c.appendChild(tag); }); }
+    function saveCurrentAsPreset() { const name = document.getElementById('newPresetName').value.trim(); if(!name) return; state.presets.push({ name, prompt: document.getElementById('systemPrompt').value }); document.getElementById('newPresetName').value = ''; renderPresets(); saveState(); }
+    
+    function exportData() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v0.9.6.json"; a.click(); }
+    function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { try { state = JSON.parse(e.target.result); location.reload(); } catch(e){alert("无效");} }; r.readAsText(f); }
+    function hardReset() { if(confirm("重置?")) { localStorage.removeItem('studyPal_v0.8.1'); location.reload(); } }
+    function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
+    function clearHistory() { if(confirm("清空?")) { state.history=[]; renderHistory(); saveState(); } }
+    function renderHistory() { document.getElementById('chatHistory').innerHTML=''; state.history.forEach(m=>addMessage(m.role==='user'?'user':'ai', m.content)); }
+    function saveState() { state.model = document.getElementById('modelNameInput').value; state.prompt = document.getElementById('systemPrompt').value; localStorage.setItem('studyPal_v0.8.1', JSON.stringify(state)); }
+    function loadState() { const s = localStorage.getItem('studyPal_v0.8.1'); if(s) state = { ...state, ...JSON.parse(s) }; }
+</script>
+</body>
+</html>
