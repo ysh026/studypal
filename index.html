@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>StudyPal v1.1.1</title>
+    <title>StudyPal v1.1.2</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* --- 核心变量 --- */
@@ -173,15 +173,16 @@
         .chat-header { padding: 16px 24px; border-bottom: 1px solid #F2F2F7; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); z-index: 10; }
         .mobile-menu-btn { display: none; font-size: 1.4rem; cursor: pointer; padding: 5px; margin-right: 10px; color: var(--primary); }
         .chat-history { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        .message { max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.02); position: relative; }
+        /* 增量：修改消息样式，为底部按钮留空间 */
+        .message { max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.02); position: relative; margin-bottom: 8px; overflow: visible; }
         .message:hover .msg-actions { opacity: 1; }
         .message.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
         .message.ai { align-self: flex-start; background: #F2F2F7; color: #000; border-bottom-left-radius: 4px; }
         .message.system { align-self: center; background: #F9F9F9; color: var(--text-secondary); font-size: 0.8rem; padding: 6px 12px; border-radius: 20px; margin: 10px 0; }
         .message pre { background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         
-        /* 增量：消息操作栏样式 */
-        .msg-actions { position: absolute; top: -10px; right: -10px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; background: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 2px; border: 1px solid #eee; z-index: 5; }
+        /* 增量：消息操作栏样式 (修改为右下角) */
+        .msg-actions { position: absolute; top: auto; bottom: -12px; right: -8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; background: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 2px; border: 1px solid #eee; z-index: 5; }
         .msg-action-btn { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666; background: #fff; }
         .msg-action-btn:hover { background: #f0f0f0; color: var(--primary); }
         .msg-action-btn.del:hover { color: #FF3B30; }
@@ -224,6 +225,39 @@
         .dot { width: 6px; height: 6px; background: #8E8E93; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .dot:nth-child(1) { animation-delay: -0.32s; } .dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        
+        /* --- 增量：思考链样式 (v1.1.2) --- */
+        details.thinking-process {
+            display: block !important; /* 强制显示 */
+            background: #F5F5F7;
+            border: 1px solid #E5E5EA;
+            border-radius: 8px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        details.thinking-process summary {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: #86868B;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.03);
+            transition: background 0.2s;
+            outline: none;
+        }
+        details.thinking-process summary:hover {
+            background: rgba(0, 0, 0, 0.06);
+            color: var(--primary);
+        }
+        .thinking-content {
+            padding: 12px;
+            font-size: 0.85rem;
+            color: #666;
+            border-top: 1px solid #E5E5EA;
+            background: #FAFAFA;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -255,7 +289,7 @@
 </div>
 
 <div class="sidebar" id="sidebar">
-    <h1>StudyPal <span class="ver">v1.1.1</span></h1>
+    <h1>StudyPal <span class="ver">v1.1.2</span></h1>
     
     <div class="task-section">
         <div class="section-header">
@@ -406,7 +440,7 @@
         { name: "法学", prompt: "你是一位资深的中国法学教授。请用苏格拉底教学法，通过反问来检验我对法律概念的理解。" }
     ];
 
-    const STORAGE_KEY = 'studyPal_v1.1.1';
+    const STORAGE_KEY = 'studyPal_v1.1.2';
 
     let state = {
         history: [], tasks: [], folders: [], currentFolderId: 'default',
@@ -464,7 +498,7 @@
         try {
             loadState();
             if(state.tasks.length===0) { 
-                const old=localStorage.getItem('studyPal_v1.0.0') || localStorage.getItem('studyPal_v0.9.20'); 
+                const old=localStorage.getItem('studyPal_v1.1.1') || localStorage.getItem('studyPal_v1.0.0') || localStorage.getItem('studyPal_v0.9.20'); 
                 if(old) try{Object.assign(state, JSON.parse(old))}catch(e){} 
             }
             if(!state.providerModels) state.providerModels = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini', custom: '' };
@@ -527,7 +561,9 @@
     function saveModel() { state.providerModels[state.provider] = document.getElementById('modelNameInput').value; saveState(); }
     function showDropdown() { const d = document.getElementById('modelDropdown'); if(d.children.length>0) d.classList.add('show'); }
     function selectModel(id) { document.getElementById('modelNameInput').value = id; state.providerModels[state.provider] = id; saveState(); document.getElementById('modelDropdown').classList.remove('show'); }
-async function fetchModels() {
+
+    // --- 修复：添加模型拉取功能 ---
+    async function fetchModels() {
         const p = state.provider;
         const key = state.apiKeys[p];
         const statusEl = document.getElementById('fetchStatus');
@@ -603,6 +639,7 @@ async function fetchModels() {
             statusEl.style.color = "#FF3B30";
         }
     }
+
     function switchMode(mode) { 
         timer.mode = mode; resetTimer(); 
         document.getElementById('tab-pomodoro').className = mode==='pomodoro'?'mode-tab active':'mode-tab';
@@ -721,22 +758,57 @@ async function fetchModels() {
         div.appendChild(msg); div.scrollTop = div.scrollHeight; 
     }
     
-    // 增量：渲染历史带按钮
+    // 增量：渲染历史带按钮 (v1.1.2：支持思考链折叠)
     function renderHistory() { 
-        const div = document.getElementById('chatHistory'); div.innerHTML = ''; 
+        const div = document.getElementById('chatHistory');
+        div.innerHTML = ''; 
         state.history.forEach((m, index) => {
-            const msgDiv = document.createElement('div'); msgDiv.className = `message ${m.role === 'user' ? 'user' : 'ai'}`;
-            try { msgDiv.innerHTML = marked.parse(m.content); } catch { msgDiv.innerText = m.content; }
+            const msgDiv = document.createElement('div'); 
+            msgDiv.className = `message ${m.role === 'user' ? 'user' : 'ai'}`;
+            
+            // --- 核心修改开始：处理思考链 ---
+            let contentHtml = '';
+            let rawContent = m.content;
+            
+            // 检测是否存在 <think> 标签 (修复版 regex: 兼容换行)
+            const thinkMatch = rawContent.match(/<think>([\s\S]*?)<\/think>/i);
+            
+            if (thinkMatch && (m.role === 'assistant' || m.role === 'model')) {
+                const thought = thinkMatch[1];
+                // 移除 <think> 部分，剩下的作为正文
+                const cleanContent = rawContent.replace(thinkMatch[0], '').trim();
+                
+                // 1. 生成折叠块 HTML (确保 details 是 block)
+                const thoughtHtml = `
+                    <details class="thinking-process">
+                        <summary>深度思考 (点击展开/收起)</summary>
+                        <div class="thinking-content">${marked.parse(thought)}</div>
+                    </details>`;
+                
+                // 2. 解析剩余正文
+                const bodyHtml = marked.parse(cleanContent);
+                
+                // 3. 拼接
+                contentHtml = thoughtHtml + bodyHtml;
+            } else {
+                // 没有思考链，正常解析
+                try { contentHtml = marked.parse(rawContent); } catch { contentHtml = rawContent; }
+            }
+            
+            msgDiv.innerHTML = contentHtml;
+            // --- 核心修改结束 ---
             
             const actionsDiv = document.createElement('div'); actionsDiv.className = 'msg-actions';
-            const delBtn = document.createElement('div'); delBtn.className = 'msg-action-btn del'; delBtn.innerHTML = '×'; delBtn.title = '删除'; delBtn.onclick = () => deleteMessage(index); actionsDiv.appendChild(delBtn);
+            const delBtn = document.createElement('div'); 
+            delBtn.className = 'msg-action-btn del'; delBtn.innerHTML = '×'; delBtn.title = '删除'; delBtn.onclick = () => deleteMessage(index); actionsDiv.appendChild(delBtn);
             if (m.role === 'assistant' || m.role === 'model') {
                 if (index === state.history.length - 1) {
                     const retryBtn = document.createElement('div'); retryBtn.className = 'msg-action-btn'; retryBtn.innerHTML = '↺'; retryBtn.title = '重试';
                     retryBtn.onclick = () => regenerate(); actionsDiv.appendChild(retryBtn);
                 }
             }
-            msgDiv.appendChild(actionsDiv); div.appendChild(msgDiv);
+            msgDiv.appendChild(actionsDiv);
+            div.appendChild(msgDiv);
         });
         div.scrollTop = div.scrollHeight;
     }
@@ -749,19 +821,22 @@ async function fetchModels() {
     
     function renderPresets() { const c = document.getElementById('presetButtons'); c.innerHTML = ''; state.presets.forEach((p, i) => { const tag = document.createElement('div'); tag.className = 'preset-tag'; tag.innerHTML = `<span>${p.name}</span> <span class="del-btn">×</span>`; tag.onclick = () => { state.prompt = p.prompt; document.getElementById('systemPrompt').value = p.prompt; saveState(); }; tag.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); if(confirm("删除?")) { state.presets.splice(i,1); renderPresets(); saveState(); } }; c.appendChild(tag); }); }
     function saveCurrentAsPreset() { const name = document.getElementById('newPresetName').value.trim(); if(!name) return; state.presets.push({ name, prompt: document.getElementById('systemPrompt').value }); document.getElementById('newPresetName').value = ''; renderPresets(); saveState(); }
-    function exportData() { saveState(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v1.1.1.json"; a.click(); }
+    function exportData() { saveState(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v1.1.2.json"; a.click(); }
     function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { try { const data = JSON.parse(e.target.result); localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); alert("恢复成功"); location.reload(); } catch(e){ alert("无效"); } }; r.readAsText(f); }
     function hardReset() { if(confirm("重置?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
-    function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
-function openMobileSidebar() {
+    function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }  
+    
+    // --- 修复：添加移动端侧边栏控制函数 ---
+    function openMobileSidebar() {
         document.getElementById('sidebar').classList.add('open');
-        document.getElementById('mobileOverlay').classList.add('show');  
+        document.getElementById('mobileOverlay').classList.add('show');
     }
 
     function closeMobileSidebar() {
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('mobileOverlay').classList.remove('show');
     }
+
     function clearHistory() { if(confirm("清空?")) { state.history=[]; renderHistory(); saveState(); } }
     function saveState() { state.model = document.getElementById('modelNameInput').value; state.prompt = document.getElementById('systemPrompt').value; state.useStream = document.getElementById('streamToggle').checked; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function loadState() { const s = localStorage.getItem(STORAGE_KEY); if(s) state = { ...state, ...JSON.parse(s) }; }
