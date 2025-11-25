@@ -2,11 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StudyPal v0.9.7 备份修复版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>StudyPal v1.1.0</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* --- 核心变量 --- */
         :root {
             --primary: #007AFF;
             --primary-bg: rgba(0, 122, 255, 0.1);
@@ -17,8 +16,9 @@
             --border: #E5E5EA;
             --sidebar-w: 340px;
             --radius: 12px;
-            --shadow: 0 4px 12px rgba(0,0,0,0.04);
-            --shadow-hover: 0 6px 16px rgba(0,0,0,0.08);
+            --shadow-sm: 0 2px 5px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         body {
@@ -27,6 +27,7 @@
             margin: 0;
             display: flex;
             height: 100vh;
+            height: 100dvh;
             color: var(--text);
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
@@ -42,7 +43,7 @@
             .sidebar.open { transform: translateX(0); }
             .mobile-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(2px); z-index: 999; }
             .mobile-overlay.show { display: block; }
-            .chat-container { width: 100%; height: 100vh; }
+            .chat-container { width: 100%; height: 100dvh; }
             .mobile-menu-btn { display: flex !important; }
         }
 
@@ -50,149 +51,215 @@
         .sidebar {
             width: var(--sidebar-w);
             background-color: var(--bg-sidebar);
-            padding: 24px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             border-right: 1px solid rgba(0,0,0,0.05);
             overflow-y: auto;
             flex-shrink: 0;
+            box-sizing: border-box;
         }
 
-        h1 { margin: 0 0 24px 0; font-size: 1.6rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: #000; }
-        .ver { font-size: 0.7rem; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; color: var(--text-secondary); font-weight: 600; }
+        h1 { margin: 0 0 20px 0; font-size: 1.6rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: #000; font-weight: 700; }
+        .ver { font-size: 0.7rem; background: rgba(0,0,0,0.06); padding: 4px 8px; border-radius: 6px; color: var(--text-secondary); font-weight: 600; }
+
+        /* 交互动效 */
+        button, .folder-tab, .task-item, .preset-tag, .btn-svg, .mode-tab, .batch-btn, .btn-focus-mode, .wheel-item, .msg-action-btn {
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        button:hover, .folder-tab:hover, .task-item:hover, .preset-tag:hover, .btn-svg:hover, .btn-focus-mode:hover, .msg-action-btn:hover {
+            transform: translateY(-1px);
+            /* box-shadow: var(--shadow-md);  removed global shadow on hover for cleaner look */
+            filter: brightness(0.95);
+        }
+        button:active, .folder-tab:active, .task-item:active, .preset-tag:active, .btn-svg:active, .btn-focus-mode:active, .msg-action-btn:active {
+            transform: scale(0.96) translateY(0);
+            box-shadow: none;
+        }
 
         /* 通用控件 */
-        button { border: none; cursor: pointer; font-family: inherit; transition: all 0.2s; }
-        button:active { transform: scale(0.96); }
-
-        .btn-primary { background: var(--primary); color: white; border-radius: var(--radius); font-weight: 500; }
+        button { border: none; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-primary { background: var(--primary); color: white; border-radius: 12px; font-weight: 500; }
         .btn-primary:hover { background: #0062cc; }
-        
-        .btn-secondary { background: #FFFFFF; color: var(--text); border: 1px solid rgba(0,0,0,0.05); border-radius: var(--radius); }
-        .btn-secondary:hover { background: #F9F9F9; border-color: rgba(0,0,0,0.1); }
-        
-        .btn-sm { font-size: 0.85rem; padding: 6px 12px; }
-        
-        /* 输入框容器 */
-        .input-group {
-            display: flex; align-items: center; gap: 8px;
-            background: #FFFFFF; padding: 4px; border-radius: var(--radius);
-            border: 1px solid transparent; box-shadow: var(--shadow);
-            transition: 0.2s;
-        }
-        .input-group:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
-        
+        .btn-secondary { background: #FFFFFF; color: var(--text); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; }
+        .btn-sm { font-size: 0.85rem; padding: 8px 16px; }
+        .btn-icon { width: 36px; height: 36px; border-radius: 50%; font-size: 1.2rem; }
+        /* 停止按钮样式 */
+        .btn-stop { background: #FF3B30 !important; color: white !important; }
+        .btn-stop:hover { background: #d6332a !important; }
+
         input, select, textarea { 
-            border: none; background: transparent; padding: 8px 10px; font-size: 0.9rem; 
-            color: var(--text); font-family: inherit; width: 100%; outline: none;
+            border: 1px solid var(--border); background: #FFFFFF; padding: 10px 12px; 
+            font-size: 0.9rem; color: var(--text); font-family: inherit; width: 100%; 
+            border-radius: 10px; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            transition: var(--transition); box-sizing: border-box; resize: none; /* 禁止手动拉伸 */
         }
+        input:focus, select:focus, textarea:focus { 
+            border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); 
+        }
+        .input-group { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        .input-group button { flex-shrink: 0; }
 
-        /* --- 任务清单 --- */
+        /* 任务清单 */
         .task-section { margin-bottom: 30px; }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; text-transform: uppercase; }
-
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.5px; text-transform: uppercase; }
         .folder-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-        .folder-tab { 
-            padding: 6px 14px; border-radius: 18px; font-size: 0.85rem; cursor: pointer; 
-            background: rgba(0,0,0,0.05); color: var(--text); transition: 0.2s; user-select: none;
-            display: flex; align-items: center; gap: 6px; border: 1px solid transparent;
-        }
-        .folder-tab:hover { background: rgba(0,0,0,0.08); }
+        .folder-tab { padding: 6px 14px; border-radius: 18px; font-size: 0.85rem; background: rgba(0,0,0,0.04); color: var(--text); border: 1px solid transparent; display: flex; align-items: center; gap: 6px; }
         .folder-tab.active { background: var(--text); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .folder-del { opacity: 0.5; font-size: 1.1rem; line-height: 0.8; padding: 2px; border-radius: 50%; }
-        .folder-del:hover { opacity: 1; background: rgba(255,255,255,0.2); }
-
+        .folder-del { opacity: 0.5; font-size: 1rem; line-height: 0.8; padding: 2px; }
+        .folder-del:hover { opacity: 1; color: #ff6b6b; }
         .task-list { list-style: none; padding: 0; margin: 12px 0; max-height: 240px; overflow-y: auto; padding-right: 4px; }
-        .task-list::-webkit-scrollbar { width: 4px; }
-        .task-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
-
-        .task-item {
-            display: flex; align-items: center; background: #FFFFFF; 
-            margin-bottom: 8px; padding: 12px 14px; border-radius: var(--radius);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03); border: 1px solid transparent;
-            transition: all 0.2s; cursor: pointer;
-        }
-        .task-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+        .task-list::-webkit-scrollbar { width: 4px; } .task-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+        .task-item { display: flex; align-items: center; background: #FFFFFF; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid transparent; transition: all 0.2s; cursor: pointer; }
+        .task-item:hover { border-color: rgba(0,122,255,0.3); }
         .task-item.active-task { border-left: 4px solid var(--primary); background: #F5F9FF; }
         .task-item.selected { background: #FFF8E1; border-color: #FFD54F; }
-        .task-item.done { opacity: 0.5; text-decoration: line-through; background: #f9f9f9; box-shadow: none; }
-
+        .task-item.done { opacity: 0.5; text-decoration: line-through; background: #fafafa; box-shadow: none; }
         .chk-select { margin-right: 12px; width: 18px; height: 18px; accent-color: var(--primary); pointer-events: none; }
-        .task-text { flex: 1; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-text { flex: 1; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .action-icon { padding: 4px; border-radius: 4px; color: #C7C7CC; font-size: 1.1rem; transition: 0.2s; margin-left: 8px;}
-        .action-icon:hover { background: rgba(0,0,0,0.05); color: var(--primary); }
+        .action-icon:hover { color: var(--primary); background: rgba(0,0,0,0.05); }
         .action-icon.del:hover { color: #FF3B30; background: rgba(255,59,48,0.1); }
-
-        .batch-bar { display: none; background: #1C1C1E; color: white; padding: 10px 16px; border-radius: 12px; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 0.85rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
-        .batch-bar.show { display: flex; animation: slideUp 0.2s; }
+        .batch-bar { display: none; position: sticky; bottom: 0; z-index: 10; background: #1C1C1E; color: white; padding: 10px 16px; border-radius: 12px; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 0.85rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2); animation: slideUp 0.2s; }
+        .batch-bar.show { display: flex; }
         @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .batch-btn { background: #555; padding: 4px 10px; border-radius: 6px; }
+        .batch-btn:hover { background: #666; }
 
-        /* --- 计时器 --- */
-        .timer-box { background: #FFFFFF; padding: 24px; border-radius: 20px; box-shadow: var(--shadow); text-align: center; margin-bottom: 30px; }
-        .mode-tabs { display: flex; background: #F2F2F7; padding: 4px; border-radius: 12px; margin-bottom: 20px; }
-        .mode-tab { flex: 1; text-align: center; padding: 8px; font-size: 0.85rem; cursor: pointer; border-radius: 9px; color: var(--text-secondary); font-weight: 500; transition: 0.2s; }
-        .mode-tab:hover { color: #000; }
-        .mode-tab.active { background: #FFFFFF; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: 600; }
-        .timer-display { font-size: 4.5rem; font-weight: 200; color: var(--text); margin: 10px 0; font-variant-numeric: tabular-nums; letter-spacing: -2px; line-height: 1; }
-        .timer-input { width: 80px; padding: 0 10px; border: 1px solid transparent; border-bottom: 2px solid #E5E5EA; font-size: 1.2rem; text-align: center; font-weight: bold; color: var(--primary); background: transparent; margin: 0 5px; }
-        .timer-input:focus { border-bottom-color: var(--primary); outline: none; }
-
-        /* --- 设置区 --- */
-        .settings-group { border-top: 1px solid var(--border); padding-top: 24px; margin-top: auto; }
+        /* 计时器 */
+        .timer-box { background: #FFFFFF; padding: 24px; border-radius: 20px; box-shadow: var(--shadow-md); text-align: center; margin-bottom: 30px; position: relative; border: 1px solid rgba(0,0,0,0.02); }
+        .btn-focus-mode { position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 50%; background: #F5F5F7; color: #666; display: flex; align-items: center; justify-content: center; transition: 0.2s; cursor: pointer; }
+        .btn-focus-mode:hover { background: #E5E5EA; color: #000; transform: scale(1.1); }
+        .mode-tabs { display: flex; background: #F2F2F7; padding: 4px; border-radius: 14px; margin-bottom: 20px; }
+        .mode-tab { flex: 1; text-align: center; padding: 8px; font-size: 0.85rem; border-radius: 10px; color: var(--text-secondary); font-weight: 500; }
+        .mode-tab.active { background: #FFFFFF; color: #000; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-weight: 600; }
+        .timer-display { font-size: 4.5rem; font-weight: 600; color: var(--text); margin: 10px 0; font-variant-numeric: tabular-nums; letter-spacing: -2px; line-height: 1; }
         
-        .preset-tag { 
-            background: #F2F2F7; border: 1px solid #E5E5EA; padding: 6px 12px; 
-            border-radius: 16px; font-size: 0.8rem; cursor: pointer; 
-            display: inline-flex; align-items: center; gap: 6px; color: var(--text); transition: 0.2s;
-        }
-        .preset-tag:hover { border-color: var(--primary); background: #EBF5FF; color: var(--primary); }
-        .del-btn { opacity: 0.4; font-size: 1rem; font-weight: bold; line-height: 0.8; }
-        .del-btn:hover { opacity: 1; color: #FF3B30; }
+        /* 滚轮样式 */
+        .wheel-container { position: relative; height: 140px; overflow: hidden; margin: 10px 0; background: #F9F9F9; border-radius: 16px; mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); box-shadow: inset 0 0 10px rgba(0,0,0,0.05); }
+        .wheel-scroll { height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; padding: 50px 0; box-sizing: border-box; scrollbar-width: none; -ms-overflow-style: none; }
+        .wheel-scroll::-webkit-scrollbar { display: none; }
+        .wheel-item { height: 40px; line-height: 40px; text-align: center; font-size: 1.2rem; color: #CCC; scroll-snap-align: center; font-weight: 600; transition: 0.2s; cursor: pointer; }
+        .wheel-item.active { color: var(--primary); font-size: 1.8rem; transform: scale(1.1); }
 
-        .btn-svg {
-            display: flex; align-items: center; justify-content: center;
-            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
-            background: #FFFFFF; border: 1px solid var(--border);
-            color: #666; cursor: pointer; transition: 0.2s;
-        }
+        /* 设置区 */
+        .settings-group { border-top: 1px solid var(--border); padding-top: 24px; margin-top: auto; }
+        .preset-tag { background: #FFFFFF; border: 1px solid #E5E5EA; padding: 6px 12px; border-radius: 16px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+        .preset-tag:hover { border-color: var(--primary); color: var(--primary); background: #F0F8FF; }
+        .btn-svg { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; background: #FFFFFF; border: 1px solid var(--border); color: #666; }
         .btn-svg:hover { border-color: var(--primary); color: var(--primary); background: #F9F9F9; }
         .btn-svg svg { width: 20px; height: 20px; fill: currentColor; }
-
         .api-row { display: flex; gap: 8px; align-items: center; }
         .api-input-container { flex: 1; background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px; display: flex; align-items: center; }
+        .custom-dropdown-wrapper { position: relative; width: 100%; }
+        .model-dropdown { display: none; position: absolute; bottom: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 10px; max-height: 200px; overflow-y: auto; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 100; margin-bottom: 5px; }
+        .model-dropdown.show { display: block; }
+        .model-option { padding: 12px; font-size: 0.85rem; border-bottom: 1px solid #f9f9f9; cursor: pointer; color: var(--text); }
+        .model-option:hover { background: #F2F2F7; color: var(--primary); }
+        .toggle-wrapper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem; font-weight: 500; color: var(--text); }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 30px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-        /* --- 聊天区 --- */
+        /* 聊天区 (新功能样式) */
         .chat-container { flex: 1; display: flex; flex-direction: column; background: #FFFFFF; position: relative; }
         .chat-header { padding: 16px 24px; border-bottom: 1px solid #F2F2F7; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); z-index: 10; }
         .mobile-menu-btn { display: none; font-size: 1.4rem; cursor: pointer; padding: 5px; margin-right: 10px; color: var(--primary); }
-        
         .chat-history { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        .message { max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        
+        .message { 
+            max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.02); position: relative; 
+        }
+        .message:hover .msg-actions { opacity: 1; } /* 悬停显示操作 */
+        
         .message.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
         .message.ai { align-self: flex-start; background: #F2F2F7; color: #000; border-bottom-left-radius: 4px; }
-        .message.system { align-self: center; background: #F9F9F9; color: var(--text-secondary); font-size: 0.8rem; padding: 6px 12px; border-radius: 20px; margin: 10px 0; box-shadow: none; }
-        
-        .message p { margin: 0 0 8px 0; } .message p:last-child { margin: 0; }
-        .message code { background: rgba(0,0,0,0.06); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.9em; }
-        .message.user code { background: rgba(255,255,255,0.2); }
+        .message.system { align-self: center; background: #F9F9F9; color: var(--text-secondary); font-size: 0.8rem; padding: 6px 12px; border-radius: 20px; margin: 10px 0; }
         .message pre { background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
-
-        .input-area { padding: 20px 24px; border-top: 1px solid #F2F2F7; display: flex; gap: 12px; background: #FFFFFF; }
-        #userInput { background: #F2F2F7; border-radius: 24px; padding: 14px 20px; font-size: 1rem; }
         
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-        .modal-box { background: #FFF; padding: 24px; border-radius: 20px; width: 90%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); transform: scale(0.95); animation: popIn 0.2s forwards; }
-        @keyframes popIn { to { transform: scale(1); } }
+        /* 消息操作栏 (删除/重试) */
+        .msg-actions {
+            position: absolute; top: -10px; right: -10px;
+            display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;
+            background: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2px; border: 1px solid #eee;
+        }
+        /* 移动端总是显示操作栏(太小不好点，或者长按?) 为了简单，这里移动端可能需要一直显示或者点一下显示。
+           目前PC hover显示，移动端点击气泡显示比较好，这里简化为 hover */
+        
+        .msg-action-btn {
+            width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; color: #666; background: #fff;
+        }
+        .msg-action-btn:hover { background: #f0f0f0; color: var(--primary); }
+        .msg-action-btn.del:hover { color: #FF3B30; }
+
+        .input-area { padding: 20px 24px; border-top: 1px solid #F2F2F7; display: flex; gap: 12px; background: #FFFFFF; flex-shrink: 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); align-items: flex-end;}
+        
+        /* 换行 Textarea 样式 */
+        #userInput { 
+            background: #F2F2F7; border-radius: 20px; padding: 12px 16px; font-size: 1rem; border: 1px solid transparent; 
+            min-height: 24px; max-height: 120px; overflow-y: auto; height: auto; line-height: 1.5;
+        }
+        #userInput:focus { background: white; border-color: var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        /* 专注模式遮罩 */
+        .focus-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.98); z-index: 3000; flex-direction: column; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transform: scale(0.9); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; }
+        .focus-overlay.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+        @media (prefers-color-scheme: dark) { .focus-overlay { background: #1C1C1E; color: white; } .focus-time { color: white !important; } }
+        .focus-time { font-size: 20vw; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -4px; margin-bottom: 40px; color: var(--text); }
+        .focus-task { font-size: 1.5rem; color: var(--text-secondary); margin-bottom: 20px; max-width: 80%; text-align: center; }
+        .focus-btn-group { display: flex; gap: 20px; }
+        .focus-btn { padding: 14px 40px; border-radius: 40px; border: none; background: var(--primary); color: white; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 10px 20px rgba(0,122,255,0.3); }
+        .focus-btn:active { transform: scale(0.95); }
+        .focus-exit { position: absolute; top: 40px; right: 30px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.5rem; color: var(--text-secondary); }
+        .focus-exit:hover { background: rgba(0,0,0,0.1); transform: rotate(90deg); }
+        .focus-controls { position: absolute; top: 40px; right: 30px; display: flex; gap: 15px; }
+        .focus-icon-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem; color: var(--text-secondary); }
+        .focus-icon-btn:hover { background: rgba(0,0,0,0.1); }
+        .focus-overlay.dark-mode { background: #000000; color: white; }
+        .focus-overlay.dark-mode .focus-time { color: white; }
+        .focus-overlay.dark-mode .focus-btn { background: #333; border: 1px solid #444; }
+        .focus-overlay.dark-mode .focus-btn:hover { background: #555; }
+        .focus-overlay.dark-mode .focus-icon-btn { color: #888; }
+        .focus-overlay.dark-mode .focus-icon-btn:hover { color: white; }
 
         .loading-bar { height: 3px; width: 100%; position: absolute; top: 0; left: 0; display: none; background: rgba(0,122,255,0.1); }
         .loading-bar.active { display: block; }
         .loading-bar::after { content: ''; position: absolute; height: 100%; width: 30%; background: var(--primary); animation: load 1.5s infinite ease-in-out; }
         @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
+        .thinking-bubble { display: inline-flex; align-items: center; gap: 4px; padding: 12px 18px; background: #F2F2F7; border-radius: 18px; border-bottom-left-radius: 4px; margin-bottom: 15px; align-self: flex-start; width: fit-content; }
+        .dot { width: 6px; height: 6px; background: #8E8E93; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; } .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        
+        /* 弹窗 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-box { background: #FFF; padding: 24px; border-radius: 20px; width: 85%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); transform: scale(0.95); animation: popIn 0.2s forwards; }
+        @keyframes popIn { to { transform: scale(1); } }
     </style>
 </head>
 <body>
 
+<div id="focusOverlay" class="focus-overlay">
+    <div class="focus-controls">
+        <div class="focus-icon-btn" onclick="toggleFocusTheme()" title="切换日夜模式">🌗</div>
+        <div class="focus-icon-btn" onclick="toggleFocusMode()" title="退出">×</div>
+    </div>
+    <div class="focus-task" id="focusTaskName">正在专注...</div>
+    <div class="focus-time" id="focusTimeDisplay">25:00</div>
+    <div class="focus-btn-group">
+        <button class="focus-btn" id="focusStartBtn" onclick="toggleTimer()">暂停</button>
+        <button class="focus-btn" onclick="resetTimer(); toggleFocusMode()">结束</button>
+    </div>
+</div>
+
 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+
 <div class="modal-overlay" id="moveModal">
     <div class="modal-box">
         <h3 style="margin-top:0; font-size:1.1rem;">移动任务到...</h3>
@@ -205,7 +272,7 @@
 </div>
 
 <div class="sidebar" id="sidebar">
-    <h1>StudyPal <span class="ver">v0.9.7</span></h1>
+    <h1>StudyPal <span class="ver">v1.1.0</span></h1>
     
     <div class="task-section">
         <div class="section-header">
@@ -214,21 +281,17 @@
                 <button class="btn-secondary btn-sm" id="batchToggleBtn" onclick="toggleBatchMode()">多选</button>
             </div>
         </div>
-        
         <div class="folder-container">
             <div class="folder-bar" id="folderBar" style="display:contents;"></div>
             <button class="btn-secondary" onclick="addFolder()" style="width:28px;height:28px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
         </div>
-
         <div class="input-group" style="margin-bottom:15px; padding-right:4px;">
             <input type="text" id="newTaskInput" placeholder="添加新任务..." onkeypress="if(event.key==='Enter') addTask()">
-            <button class="btn-primary" onclick="addTask()" style="width:32px; height:32px; border-radius:8px; display:flex;align-items:center;justify-content:center;">
+            <button class="btn-primary btn-icon" onclick="addTask()" style="width:36px; height:36px; border-radius:8px; flex-shrink:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             </button>
         </div>
-        
         <ul class="task-list" id="taskListUi"></ul>
-
         <div class="batch-bar" id="batchBar">
             <span>已选 <span id="batchCount">0</span> 项</span>
             <div style="display:flex; gap:10px;">
@@ -238,14 +301,19 @@
         </div>
     </div>
 
-    <div class="timer-box">
+    <div class="timer-box" id="timerCard">
+        <div class="btn-focus-mode" onclick="toggleFocusMode()" title="进入专注模式">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </div>
         <div class="mode-tabs">
             <div class="mode-tab active" id="tab-pomodoro" onclick="switchMode('pomodoro')">专注</div>
             <div class="mode-tab" id="tab-stopwatch" onclick="switchMode('stopwatch')">正计时</div>
         </div>
         <div class="timer-display" id="timerDisplay">25:00</div>
-        <div id="pomodoroInput" class="timer-input-wrapper">
-            设定 <input type="number" id="customTimeInput" class="timer-input" value="25" min="1" onchange="validateTime()"> 分钟
+        <div id="pomodoroInput">
+            <div class="wheel-container">
+                <div class="wheel-scroll" id="wheelScroll"></div>
+            </div>
         </div>
         <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <button class="btn-primary btn-sm" onclick="toggleTimer()" id="startBtn" style="padding:12px;">开始</button>
@@ -260,57 +328,40 @@
         <div class="preset-container" id="presetButtons"></div>
         <div class="input-group" style="margin-bottom:12px; padding-right:4px;">
             <input type="text" id="newPresetName" placeholder="新预设名">
-            <button class="btn-svg" onclick="saveCurrentAsPreset()" title="保存预设" style="width:32px; height:32px; border:none; background:#F2F2F7;">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="#666"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+            <button class="btn-svg" onclick="saveCurrentAsPreset()" title="保存预设" style="width:36px; height:36px; border:none; background:#FFFFFF; flex-shrink:0;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#666"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
             </button>
         </div>
-
         <label>Prompt</label>
         <div class="input-group" style="margin-bottom:12px; padding:0;">
-            <textarea id="systemPrompt" rows="2" onchange="saveState()" style="margin:0; padding:10px;"></textarea>
+            <textarea id="systemPrompt" rows="2" onchange="saveState()" style="margin:0; padding:10px; border:none;"></textarea>
         </div>
-
         <div style="background:white; padding:16px; border-radius:16px; border:1px solid #E5E5EA; margin-bottom:20px;">
+            <div class="toggle-wrapper"><span>打字机效果</span><label class="toggle-switch"><input type="checkbox" id="streamToggle" onchange="saveState()"><span class="slider"></span></label></div>
             <label style="margin-top:0">模型服务商</label>
             <div class="input-group" style="margin-bottom:10px;">
-                <select id="providerSelect" onchange="changeProvider()" style="margin:0;">
-                    <option value="siliconflow">SiliconFlow</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="custom">Custom</option>
+                <select id="providerSelect" onchange="changeProvider()" style="margin:0; border:none;">
+                    <option value="siliconflow">SiliconFlow</option><option value="deepseek">DeepSeek</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="custom">Custom</option>
                 </select>
             </div>
-            
-            <div id="customUrlGroup" style="display:none; margin-bottom:10px;">
-                <div class="input-group"><input type="text" id="apiBaseUrl" placeholder="API URL" onchange="saveAPIKey()"></div>
-            </div>
-            
-            <div class="input-group" style="margin-bottom:10px;">
-                <input type="password" id="apiKeyInput" placeholder="API Key" onchange="saveAPIKey()">
-            </div>
-            
+            <div id="customUrlGroup" style="display:none; margin-bottom:10px;"><div class="input-group"><input type="text" id="apiBaseUrl" placeholder="API URL" onchange="saveAPIKey()"></div></div>
+            <div class="input-group" style="margin-bottom:10px;"><input type="password" id="apiKeyInput" placeholder="API Key" onchange="saveAPIKey()"></div>
             <label>模型 ID</label>
             <div class="api-row">
-                <div class="api-input-container">
-                    <input list="modelList" id="modelNameInput" placeholder="选择或输入..." onchange="saveState()">
-                    <datalist id="modelList"></datalist>
+                <div class="custom-dropdown-wrapper">
+                    <div class="input-group" style="margin:0; padding:4px 8px;"><input type="text" id="modelNameInput" placeholder="输入或选择..." onfocus="showDropdown()" oninput="saveModel()" autocomplete="off" style="margin:0;"></div>
+                    <div id="modelDropdown" class="model-dropdown"></div>
                 </div>
-                <button class="btn-svg" onclick="fetchModels()" title="拉取列表">
-                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                </button>
+                <button class="btn-svg" onclick="fetchModels()" title="拉取列表" style="flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="#555"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg></button>
             </div>
             <small id="fetchStatus" style="font-size:0.7rem; color:#aaa; display:block; margin-top:4px; height:15px;"></small>
         </div>
-
         <div class="row" style="justify-content:space-between; margin-bottom:20px;">
             <button class="btn-secondary btn-sm" onclick="exportData()">备份数据</button>
             <button class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">恢复数据</button>
             <input type="file" id="importFile" style="display:none" onchange="importData(this)">
         </div>
-        <div style="text-align:center;">
-            <span onclick="hardReset()" style="font-size:0.75rem; color:#FF3B30; cursor:pointer; font-weight:500;">重置所有数据</span>
-        </div>
+        <div style="text-align:center;"><span onclick="hardReset()" style="font-size:0.75rem; color:#FF3B30; cursor:pointer; font-weight:500;">重置所有数据</span></div>
     </div>
 </div>
 
@@ -325,309 +376,448 @@
     </div>
     <div class="chat-history" id="chatHistory"></div>
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button class="btn-primary btn-icon" onclick="sendMessage()" style="width:44px; height:44px; border-radius:22px; flex-shrink:0;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <textarea id="userInput" rows="1" placeholder="输入消息..." onkeydown="handleInputKey(event)"></textarea>
+        <button class="btn-primary btn-icon" id="sendBtn" onclick="handleSendClick()" style="width:44px; height:44px; border-radius:22px; flex-shrink:0;">
+            <svg id="iconSend" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            <svg id="iconStop" style="display:none;" viewBox="0 0 24 24" width="18" height="18" fill="white"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"/></svg>
         </button>
     </div>
 </div>
 
 <script>
-    // --- StudyPal v0.9.7 Logic ---
-
     const TEST_KEY = "";
     const DEFAULT_PRESETS = [
-        { name: "默认", prompt: "你是一个严格但风趣的学习教练。如果番茄钟结束，请主动根据用户的任务询问进度。" },
+        { name: "默认", prompt: "你是一个严格但风趣的学习助手。如果番茄钟结束，请主动根据用户的任务询问进度。" },
         { name: "法学", prompt: "你是一位资深的中国法学教授。请用苏格拉底教学法，通过反问来检验我对法律概念的理解。" }
     ];
+
+    const STORAGE_KEY = 'studyPal_v1.1.0';
 
     let state = {
         history: [], tasks: [], folders: [], currentFolderId: 'default',
         presets: [], provider: 'siliconflow',
         apiKeys: { siliconflow: '', deepseek: '', gemini: '', openai: '', custom: '' },
-        model: 'deepseek-ai/DeepSeek-V3.2-Exp', baseUrl: '',
-        prompt: DEFAULT_PRESETS[0].prompt
+        providerModels: { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini', custom: '' },
+        model: '', baseUrl: '',
+        prompt: DEFAULT_PRESETS[0].prompt, useStream: true
     };
 
     let isBatchMode = false; 
     let timer = { interval: null, timeLeft: 25 * 60, elapsed: 0, isRunning: false, mode: 'pomodoro' };
+    
+    // --- 新增：AbortController 用于停止生成 ---
+    let currentController = null;
+
+    function initWheel() {
+        const wheel = document.getElementById('wheelScroll');
+        wheel.innerHTML = '';
+        const padTop = document.createElement('div'); padTop.style.height = '50px'; wheel.appendChild(padTop);
+        for(let set=0; set<3; set++) {
+            for(let i=1; i<=120; i++) {
+                const div = document.createElement('div');
+                div.className = 'wheel-item'; div.innerText = i;
+                div.onclick = () => { wheel.scrollTop = (i-1 + 120)*40; updateWheelSelect(i); };
+                wheel.appendChild(div);
+            }
+        }
+        const padBot = document.createElement('div'); padBot.style.height = '50px'; wheel.appendChild(padBot);
+        wheel.scrollTop = (25-1 + 120) * 40; updateWheelSelect(25);
+        let timeout;
+        wheel.addEventListener('scroll', () => {
+            clearTimeout(timeout);
+            const totalH = 120 * 40;
+            if (wheel.scrollTop < 10) wheel.scrollTop += totalH;
+            else if (wheel.scrollTop > totalH * 2 - 100) wheel.scrollTop -= totalH;
+            timeout = setTimeout(() => {
+                const index = Math.round(wheel.scrollTop / 40);
+                wheel.scrollTo({ top: index * 40, behavior: 'smooth' });
+                updateWheelSelect((index % 120) + 1);
+            }, 50);
+        });
+    }
+
+    function updateWheelSelect(val) {
+        if(!timer.isRunning && timer.mode==='pomodoro') { timer.timeLeft = val * 60; updateDisplay(); }
+        document.querySelectorAll('.wheel-item').forEach(el => {
+            el.classList.remove('active');
+            if(parseInt(el.innerText) === val) el.classList.add('active');
+        });
+    }
 
     window.onload = () => {
         loadState();
-        
-        // 迁移逻辑
-        if (!state.folders || state.folders.length === 0) {
-            state.folders = [{ id: 'default', name: '默认' }];
-            state.currentFolderId = 'default';
+        if(state.tasks.length===0) { 
+            const old=localStorage.getItem('studyPal_v1.0.0') || localStorage.getItem('studyPal_v0.9.20'); 
+            if(old) try{Object.assign(state, JSON.parse(old))}catch(e){} 
         }
-        
-        if (!state.apiKeys || typeof state.apiKeys !== 'object') {
-            state.apiKeys = { siliconflow: '', deepseek: '', gemini: '', openai: '', custom: '' };
-        }
-        
-        // 如果 SiliconFlow Key 为空，预填
-        if (!state.apiKeys.siliconflow || state.apiKeys.siliconflow.trim() === '') {
-            state.apiKeys.siliconflow = TEST_KEY;
-        }
-        
-        if (!state.presets || state.presets.length === 0) state.presets = DEFAULT_PRESETS;
+        if(!state.providerModels) state.providerModels = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini', custom: '' };
+        if(!state.folders || state.folders.length===0) { state.folders=[{id:'default', name:'默认'}]; state.currentFolderId='default'; }
+        if(!state.apiKeys.siliconflow) state.apiKeys.siliconflow=TEST_KEY;
+        if(!state.presets || state.presets.length===0) state.presets=DEFAULT_PRESETS;
 
         document.getElementById('providerSelect').value = state.provider;
-        updateProviderUI();
-        renderFolders(); renderTasks(); renderPresets(); renderHistory(); switchMode(timer.mode);
+        document.getElementById('streamToggle').checked = state.useStream !== false;
+        
+        initWheel();
+        updateProviderUI(); renderFolders(); renderTasks(); renderPresets(); renderHistory(); switchMode(timer.mode);
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-dropdown-wrapper') && !e.target.closest('.btn-svg')) document.getElementById('modelDropdown').classList.remove('show');
+        });
+
+        // Textarea auto-resize
+        const tx = document.getElementById('userInput');
+        tx.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
     };
 
-    function openMobileSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('mobileOverlay').classList.add('show'); }
-    function closeMobileSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('mobileOverlay').classList.remove('show'); }
-
-    function toggleBatchMode() {
-        isBatchMode = !isBatchMode;
-        const btn = document.getElementById('batchToggleBtn');
-        if (isBatchMode) { btn.style.background = "var(--primary)"; btn.style.color="white"; btn.innerText = "完成"; } 
-        else { btn.style.background = ""; btn.style.color=""; btn.innerText = "多选"; state.tasks.forEach(t => t.selected = false); }
-        renderTasks();
-    }
-
-    function renderTasks() {
-        const ul = document.getElementById('taskListUi'); ul.innerHTML = '';
-        const currentTasks = state.tasks.filter(t => (t.folderId || 'default') === state.currentFolderId);
-        
-        if (currentTasks.length === 0) ul.innerHTML = '<div style="color:#C7C7CC;font-size:0.8rem;text-align:center;padding:20px;">(暂无任务)</div>';
-
-        const selectedCount = currentTasks.filter(t => t.selected).length;
-        const batchBar = document.getElementById('batchBar');
-        if (isBatchMode && selectedCount > 0) {
-            batchBar.classList.add('show');
-            document.getElementById('batchCount').innerText = selectedCount;
-        } else {
-            batchBar.classList.remove('show');
+    function toggleFocusMode() {
+        const overlay = document.getElementById('focusOverlay');
+        const card = document.getElementById('timerCard');
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width/2; const cy = rect.top + rect.height/2;
+        overlay.style.transformOrigin = `${cx}px ${cy}px`;
+        const active = overlay.classList.toggle('active');
+        if(active) {
+            const t = state.tasks.find(k=>k.active);
+            document.getElementById('focusTaskName').innerText = t ? "当前任务: " + t.text : "自由专注";
+            syncFocusDisplay();
         }
-
-        currentTasks.forEach(t => {
-            const li = document.createElement('li');
-            let classes = 'task-item';
-            if (t.active) classes += ' active-task';
-            if (t.done) classes += ' done';
-            if (t.selected && isBatchMode) classes += ' selected'; 
-            li.className = classes;
-            
-            li.onclick = (e) => {
-                e.stopPropagation();
-                if (isBatchMode) { t.selected = !t.selected; renderTasks(); } 
-                else { state.tasks.forEach(k => k.active = (k.id === t.id)); renderTasks(); saveState(); }
-            };
-
-            if (isBatchMode) {
-                const chk = document.createElement('input');
-                chk.type = 'checkbox'; chk.className = 'chk-select'; chk.checked = !!t.selected;
-                chk.onclick = (e) => { e.stopPropagation(); t.selected = !t.selected; renderTasks(); };
-                li.appendChild(chk);
-            }
-
-            const textSpan = document.createElement('span');
-            textSpan.className = 'task-text'; textSpan.innerText = t.text;
-            li.appendChild(textSpan);
-
-            if (!isBatchMode) {
-                const actions = document.createElement('div');
-                actions.className = 'task-actions';
-                actions.innerHTML = `
-                    <span class="action-icon" onclick="toggleDone(${t.id}, event)">${t.done?'↩':'✓'}</span>
-                    <span class="action-icon del" onclick="delTask(${t.id}, event)">×</span>
-                `;
-                li.appendChild(actions);
-            }
-            ul.appendChild(li);
-        });
     }
-
-    // --- 修复：AI 任务防重 ---
-    function addTask(txt, targetId, isFromAI = false) {
-        const input = document.getElementById('newTaskInput'); const t = txt || input.value.trim();
-        if (!t) return;
-        const folder = targetId || state.currentFolderId;
-
-        // 防重检测
-        const duplicate = state.tasks.some(k => k.text === t && (k.folderId||'default') === folder && !k.done);
-        if (duplicate) {
-            if (isFromAI) return; // AI静默跳过
-            if (!confirm("任务已存在，确定添加？")) return;
-        }
-
-        state.tasks.forEach(k => k.active = false);
-        state.tasks.push({ id: Date.now(), text: t, done: false, active: true, selected: false, folderId: folder });
-        if (!txt) input.value = ''; renderTasks(); saveState();
+    function syncFocusDisplay() {
+        document.getElementById('focusTimeDisplay').innerText = document.getElementById('timerDisplay').innerText;
+        document.getElementById('focusStartBtn').innerText = timer.isRunning?"暂停":"开始";
+        if(document.getElementById('focusOverlay').classList.contains('active')) requestAnimationFrame(syncFocusDisplay);
     }
+    function toggleFocusTheme() { document.getElementById('focusOverlay').classList.toggle('dark-mode'); }
 
-    function toggleDone(id, e) { e.stopPropagation(); const t = state.tasks.find(k=>k.id===id); if(t) t.done=!t.done; renderTasks(); saveState(); }
-    function delTask(id, e) { e.stopPropagation(); state.tasks = state.tasks.filter(k=>k.id!==id); renderTasks(); saveState(); }
-    function batchDelete() { if(!confirm("删除选中项？")) return; state.tasks = state.tasks.filter(t => !(t.selected && (t.folderId||'default') === state.currentFolderId)); renderTasks(); saveState(); }
-    
-    function openMoveModal() {
-        const sel = document.getElementById('moveTargetFolder'); sel.innerHTML = '';
-        state.folders.forEach(f => { if (f.id !== state.currentFolderId) { const opt = document.createElement('option'); opt.value = f.id; opt.innerText = f.name; sel.appendChild(opt); } });
-        if(sel.options.length === 0) { alert("无其他文件夹"); return; }
-        document.getElementById('moveModal').style.display = 'flex';
-    }
-    function closeModal() { document.getElementById('moveModal').style.display = 'none'; }
-    function confirmMove() {
-        const targetId = document.getElementById('moveTargetFolder').value;
-        state.tasks.forEach(t => { if ((t.folderId||'default') === state.currentFolderId && t.selected) { t.folderId = targetId; t.selected = false; } });
-        closeModal(); renderTasks(); saveState();
-    }
-
-    function renderFolders() {
-        const bar = document.getElementById('folderBar'); bar.innerHTML = '';
-        state.folders.forEach(f => {
-            const tab = document.createElement('div');
-            tab.className = `folder-tab ${f.id === state.currentFolderId ? 'active' : ''}`;
-            let html = `<span>${f.name}</span>`;
-            if (f.id !== 'default') html += `<span class="folder-del" onclick="deleteFolder('${f.id}', event)">×</span>`;
-            tab.innerHTML = html;
-            tab.onclick = () => { state.currentFolderId = f.id; isBatchMode = false; renderFolders(); renderTasks(); saveState(); };
-            bar.appendChild(tab);
-        });
-    }
-    function addFolder() { const name = prompt("新文件夹名称:"); if (name && name.trim()) { const id = 'f_' + Date.now(); state.folders.push({ id, name: name.trim() }); state.currentFolderId = id; renderFolders(); renderTasks(); saveState(); } }
-    function deleteFolder(id, e) { e.stopPropagation(); if (confirm("删除此文件夹？")) { state.folders = state.folders.filter(f => f.id !== id); state.tasks = state.tasks.filter(t => t.folderId !== id); if (state.currentFolderId === id) state.currentFolderId = 'default'; renderFolders(); renderTasks(); saveState(); } }
-
-    function changeProvider() { state.provider = document.getElementById('providerSelect').value; updateProviderUI(); }
+    function changeProvider() { document.getElementById('fetchStatus').innerText=''; state.provider = document.getElementById('providerSelect').value; updateProviderUI(); }
     function updateProviderUI() {
         const p = state.provider;
         document.getElementById('customUrlGroup').style.display = (p === 'custom') ? 'block' : 'none';
         if(p === 'custom') document.getElementById('apiBaseUrl').value = state.baseUrl;
         document.getElementById('apiKeyInput').value = state.apiKeys[p] || '';
-        const defaults = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini' };
-        if (defaults[p]) { state.model = defaults[p]; document.getElementById('modelNameInput').value = state.model; }
+        document.getElementById('modelNameInput').value = state.providerModels[p] || '';
         saveState();
     }
+    function saveModel() { state.providerModels[state.provider] = document.getElementById('modelNameInput').value; saveState(); }
+    function showDropdown() { const d = document.getElementById('modelDropdown'); if(d.children.length>0) d.classList.add('show'); }
+    function selectModel(id) { document.getElementById('modelNameInput').value = id; state.providerModels[state.provider] = id; saveState(); document.getElementById('modelDropdown').classList.remove('show'); }
+
+    function switchMode(mode) { 
+        timer.mode = mode; resetTimer(); 
+        document.getElementById('tab-pomodoro').className = mode==='pomodoro'?'mode-tab active':'mode-tab';
+        document.getElementById('tab-stopwatch').className = mode==='stopwatch'?'mode-tab active':'mode-tab';
+        document.getElementById('pomodoroInput').style.display = mode==='pomodoro'?'block':'none';
+        if(mode==='pomodoro') {
+            const mins = Math.floor(timer.timeLeft/60);
+            const wheel = document.getElementById('wheelScroll');
+            wheel.scrollTop = (mins-1 + 120)*40;
+            updateWheelSelect(mins);
+        }
+        updateDisplay(); 
+    }
+
+    function toggleTimer() { const btn = document.getElementById('startBtn'); if (timer.isRunning) { clearInterval(timer.interval); timer.isRunning = false; btn.innerText = "继续"; } else { if (timer.mode === 'pomodoro' && timer.timeLeft <= 0) resetTimer(); timer.isRunning = true; btn.innerText = "暂停"; timer.interval = setInterval(() => { if (timer.mode === 'pomodoro') { if (timer.timeLeft > 0) { timer.timeLeft--; updateDisplay(); } else { finishPomodoro(); } } else { timer.elapsed++; updateDisplay(); } }, 1000); } }
+    function resetTimer() { clearInterval(timer.interval); timer.isRunning = false; if (timer.mode === 'pomodoro') { const wheel = document.getElementById('wheelScroll'); const idx = Math.round(wheel.scrollTop/40)%120 + 1; timer.timeLeft = idx*60; } else { timer.elapsed = 0; } document.getElementById('startBtn').innerText = "开始"; updateDisplay(); }
+    function updateDisplay() { let s = timer.mode === 'pomodoro' ? timer.timeLeft : timer.elapsed; const m = Math.floor(s / 60).toString().padStart(2, '0'); const sec = (s % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `${m}:${sec}`; document.title = timer.isRunning ? `(${m}m) StudyPal` : 'StudyPal'; }
+    function finishPomodoro() { resetTimer(); const taskName = state.tasks.find(t => t.active)?.text || "无"; sendMessageInternal(`[系统通知] 番茄钟结束(任务:${taskName})。请考核我。`, true); alert("时间到！"); }
+
+    function toggleBatchMode() { isBatchMode = !isBatchMode; const btn = document.getElementById('batchToggleBtn'); if (isBatchMode) { btn.style.background = "var(--primary)"; btn.style.color="white"; btn.innerText = "完成"; } else { btn.style.background = ""; btn.style.color=""; btn.innerText = "多选"; state.tasks.forEach(t => t.selected = false); } renderTasks(); }
+    function renderTasks() {
+        const ul = document.getElementById('taskListUi'); ul.innerHTML = '';
+        const currentTasks = state.tasks.filter(t => (t.folderId || 'default') === state.currentFolderId);
+        if (currentTasks.length === 0) ul.innerHTML = '<div style="color:#C7C7CC;font-size:0.8rem;text-align:center;padding:20px;">(暂无任务)</div>';
+        const selectedCount = currentTasks.filter(t => t.selected).length;
+        const batchBar = document.getElementById('batchBar');
+        if (isBatchMode && selectedCount > 0) { batchBar.classList.add('show'); document.getElementById('batchCount').innerText = selectedCount; } else { batchBar.classList.remove('show'); }
+        currentTasks.forEach(t => {
+            const li = document.createElement('li'); li.className = `task-item ${t.active?'active-task':''} ${t.done?'done':''} ${t.selected&&isBatchMode?'selected':''}`;
+            li.onclick = (e) => { e.stopPropagation(); if (isBatchMode) { t.selected = !t.selected; renderTasks(); } else { state.tasks.forEach(k => k.active = (k.id === t.id)); renderTasks(); saveState(); } };
+            if (isBatchMode) { const chk = document.createElement('input'); chk.type = 'checkbox'; chk.className = 'chk-select'; chk.checked = !!t.selected; chk.onclick = (e) => { e.stopPropagation(); t.selected = !t.selected; renderTasks(); }; li.appendChild(chk); }
+            const textSpan = document.createElement('span'); textSpan.className = 'task-text'; textSpan.innerText = t.text; li.appendChild(textSpan);
+            if (!isBatchMode) { const actions = document.createElement('div'); actions.className = 'task-actions'; actions.innerHTML = `<span class="action-icon" onclick="toggleDone(${t.id}, event)">${t.done?'↩':'✓'}</span><span class="action-icon del" onclick="delTask(${t.id}, event)">×</span>`; li.appendChild(actions); }
+            ul.appendChild(li);
+        });
+    }
+    function addTask(txt, targetId, isFromAI=false) { const input = document.getElementById('newTaskInput'); const t = txt || input.value.trim(); if (!t) return; const folder = targetId || state.currentFolderId; const dup = state.tasks.some(k => k.text === t && (k.folderId||'default') === folder && !k.done); if (dup) { if (isFromAI) return; if (!confirm("重复添加?")) return; } state.tasks.forEach(k => k.active = false); state.tasks.push({ id: Date.now(), text: t, done: false, active: true, selected: false, folderId: folder }); if (!txt) input.value = ''; renderTasks(); saveState(); }
+    function toggleDone(id, e) { e.stopPropagation(); const t = state.tasks.find(k=>k.id===id); if(t) t.done=!t.done; renderTasks(); saveState(); }
+    function delTask(id, e) { e.stopPropagation(); state.tasks = state.tasks.filter(k=>k.id!==id); renderTasks(); saveState(); }
+    function batchDelete() { if(!confirm("删除选中?")) return; state.tasks = state.tasks.filter(t => !(t.selected && (t.folderId||'default') === state.currentFolderId)); renderTasks(); saveState(); }
+    function renderFolders() { const bar = document.getElementById('folderBar'); bar.innerHTML = ''; state.folders.forEach(f => { const tab = document.createElement('div'); tab.className = `folder-tab ${f.id === state.currentFolderId ? 'active' : ''}`; let html = `<span>${f.name}</span>`; if (f.id !== 'default') html += `<span class="folder-del" onclick="deleteFolder('${f.id}', event)">×</span>`; tab.innerHTML = html; tab.onclick = () => { state.currentFolderId = f.id; isBatchMode = false; const btn = document.getElementById('batchToggleBtn'); if(btn){btn.style.background = ""; btn.style.color=""; btn.innerText = "多选";} state.tasks.forEach(t => t.selected = false); renderFolders(); renderTasks(); saveState(); }; bar.appendChild(tab); }); }
+    function addFolder() { const name = prompt("文件夹名:"); if (name && name.trim()) { const id = 'f_' + Date.now(); state.folders.push({ id, name: name.trim() }); state.currentFolderId = id; renderFolders(); renderTasks(); saveState(); } }
+    function deleteFolder(id, e) { e.stopPropagation(); if (confirm("删除?")) { state.folders = state.folders.filter(f => f.id !== id); state.tasks = state.tasks.filter(t => t.folderId !== id); if (state.currentFolderId === id) state.currentFolderId = 'default'; renderFolders(); renderTasks(); saveState(); } }
+    function openMoveModal() { const sel = document.getElementById('moveTargetFolder'); sel.innerHTML = ''; state.folders.forEach(f => { if (f.id !== state.currentFolderId) { const opt = document.createElement('option'); opt.value = f.id; opt.innerText = f.name; sel.appendChild(opt); } }); if(sel.options.length === 0) { alert("无其他文件夹"); return; } document.getElementById('moveModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('moveModal').style.display = 'none'; }
+    function confirmMove() { const targetId = document.getElementById('moveTargetFolder').value; state.tasks.forEach(t => { if ((t.folderId||'default') === state.currentFolderId && t.selected) { t.folderId = targetId; t.selected = false; } }); closeModal(); renderTasks(); saveState(); }
     function saveAPIKey() { state.apiKeys[state.provider] = document.getElementById('apiKeyInput').value; if (state.provider === 'custom') state.baseUrl = document.getElementById('apiBaseUrl').value; saveState(); }
+    
+    // --- 新增：输入框按键处理 ---
+    function handleInputKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // 阻止默认换行
+            if (currentController) stopGeneration(); // 如果正在生成，Enter键作为停止
+            else sendMessage();
+        }
+    }
+    
+    // --- 新增：点击发送按钮逻辑 ---
+    function handleSendClick() {
+        if (currentController) stopGeneration();
+        else sendMessage();
+    }
+    
+    // --- 新增：停止生成 ---
+    function stopGeneration() {
+        if (currentController) {
+            currentController.abort();
+            currentController = null;
+            toggleSendButton(false);
+            document.getElementById('loadingBar').classList.remove('active');
+            document.getElementById('statusText').innerText = "已停止";
+            // 移除思考气泡
+            const bubble = document.querySelector('.thinking-bubble');
+            if (bubble) bubble.remove();
+        }
+    }
+    
+    // --- 新增：切换发送/停止按钮 ---
+    function toggleSendButton(isGenerating) {
+        const sendIcon = document.getElementById('iconSend');
+        const stopIcon = document.getElementById('iconStop');
+        const btn = document.getElementById('sendBtn');
+        
+        if (isGenerating) {
+            sendIcon.style.display = 'none';
+            stopIcon.style.display = 'block';
+            btn.classList.add('btn-stop');
+        } else {
+            sendIcon.style.display = 'block';
+            stopIcon.style.display = 'none';
+            btn.classList.remove('btn-stop');
+        }
+    }
 
-    async function sendMessageInternal(text, isHidden = false) {
+    // --- 新增：重新生成 ---
+    function regenerate() {
+        // 找到最后一条 AI 消息
+        const lastIdx = state.history.findLastIndex(m => m.role === 'assistant' || m.role === 'model');
+        if (lastIdx === -1) return;
+        
+        // 如果最后一条是 AI，它的上一条应该是 User
+        // 我们删除这条 AI 消息
+        state.history.splice(lastIdx, 1);
+        renderHistory();
+        
+        // 拿到现在最新的 User 消息内容重新发送
+        const lastUserMsg = state.history[state.history.length - 1];
+        if (lastUserMsg && (lastUserMsg.role === 'user')) {
+            // 重新发送时不添加新 User 消息，而是直接调接口
+            sendMessageInternal(lastUserMsg.content, true); // true 表示不再次在 UI 显示 User 消息
+        }
+    }
+    
+    // --- 新增：删除单条消息 ---
+    function deleteMessage(index) {
+        if (confirm("删除这条消息？")) {
+            state.history.splice(index, 1);
+            saveState();
+            renderHistory();
+        }
+    }
+
+    async function sendMessageInternal(text, isReSend = false) {
+        // 初始化 AbortController
+        currentController = new AbortController();
+        toggleSendButton(true);
+
         const bar = document.getElementById('loadingBar'); bar.classList.add('active');
+        const st = document.getElementById('statusText'); st.innerText = "思考中...";
+        
         let apiHistory = JSON.parse(JSON.stringify(state.history));
-        if (isHidden) { apiHistory.push({ role: 'user', content: text }); addMessage('system', text); }
-        const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]";
-        try {
-            let url, headers = { 'Content-Type': 'application/json' }, body;
-            const currentKey = state.apiKeys[state.provider];
-            if (!currentKey) throw new Error("请设置 API Key");
+        
+        // 如果不是重发（正常发送），才处理 UI 显示和 history 更新
+        // 但这里逻辑稍作调整：sendMessage 已经更新了 history
+        // 这里 apiHistory 构造时，如果 isReSend 为 true，说明 history 已经是准确的了（因为刚刚删了最后一条 AI）
+        
+        // 系统提示
+        if (!isReSend) {
+            // 常规流程，sendMessage 已经把 user 消息推进去了
+        } else {
+            // 重发流程，user 消息已经在 history 里了，这里不需要额外操作
+        }
 
+        const chatHistory = document.getElementById('chatHistory');
+        const thinkingBubble = document.createElement('div'); thinkingBubble.className = 'thinking-bubble'; thinkingBubble.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div>`; chatHistory.appendChild(thinkingBubble); chatHistory.scrollTop = chatHistory.scrollHeight;
+        
+        const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]";
+        
+        try {
+            let url, headers = { 'Content-Type': 'application/json' }, body; const currentKey = state.apiKeys[state.provider]; if (!currentKey) throw new Error("请设置 Key"); const currentModel = state.providerModels[state.provider];
+            
+            // 构建请求体 (Common)
+            let messagesPayload = [];
             if (state.provider === 'gemini') {
-                url = `https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${currentKey}`;
-                const contents = [{ role: 'user', parts: [{ text: "System: " + sys }] }, ...apiHistory.map(m => ({ role: m.role==='user'?'user':'model', parts: [{ text: m.content }] }))];
-                body = JSON.stringify({ contents });
+                 url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentKey}`;
+                 const contents = [{ role: 'user', parts: [{ text: "System: " + sys }] }, ...apiHistory.map(m => ({ role: m.role==='user'?'user':'model', parts: [{ text: m.content }] }))];
+                 body = JSON.stringify({ contents });
             } else {
-                let base = "";
-                if (state.provider === 'custom') base = state.baseUrl;
-                else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn";
-                else if (state.provider === 'deepseek') base = "https://api.deepseek.com";
-                else base = "https://api.openai.com";
-                if (!base.endsWith('/v1')) base += "/v1";
-                url = base + "/chat/completions";
-                headers['Authorization'] = `Bearer ${currentKey}`;
-                const messages = [{ role: 'system', content: sys }, ...apiHistory];
-                body = JSON.stringify({ model: state.model, messages, temperature: 0.7 });
+                 let base = ""; if (state.provider === 'custom') base = state.baseUrl; else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn"; else if (state.provider === 'deepseek') base = "https://api.deepseek.com"; else base = "https://api.openai.com"; if (!base.endsWith('/v1')) base += "/v1"; url = base + "/chat/completions"; headers['Authorization'] = `Bearer ${currentKey}`;
+                 const messages = [{ role: 'system', content: sys }, ...apiHistory];
+                 body = JSON.stringify({ model: currentModel, messages, temperature: 0.7 });
             }
-            const res = await fetch(url, { method: 'POST', headers, body });
+
+            const res = await fetch(url, { 
+                method: 'POST', 
+                headers, 
+                body,
+                signal: currentController.signal // 绑定信号
+            });
+            
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             
             let reply = (state.provider === 'gemini') ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
-            const match = reply.match(/\[ADD_TASK:\s*(.*?)\]/);
-            if (match) {
-                const newTask = match[1].trim();
-                addTask(newTask, 'default', true); // 传入 true 开启防重
-                reply = reply.replace(match[0], "").trim();
-                addMessage('system', `✨ AI 添加任务: "${newTask}"`);
+            thinkingBubble.remove();
+            const match = reply.match(/\[ADD_TASK:\s*(.*?)\]/); if (match) { const newTask = match[1].trim(); addTask(newTask, 'default', true); reply = reply.replace(match[0], "").trim(); addMessage('system', `✨ AI 添加: "${newTask}"`); }
+            
+            if (state.useStream) typeWriterEffect(reply); 
+            else addMessage('ai', reply); // 此时 renderHistory 会被调用或者手动 push
+            
+            // 注意：typeWriterEffect 是视觉效果，数据还是要存
+            if (!state.useStream) {
+                 state.history.push({ role: 'assistant', content: reply });
+                 saveState();
+                 // 因为 renderHistory 是全量渲染，这里为了性能只 push 了数据，需要刷新视图显示操作按钮
+                 // 但 addMessage 只加了 DOM。为了显示“操作按钮”，最好重绘一下最后一条，或者 addMessage 支持渲染按钮
+                 // 简单起见，addMessage 改良支持 HTML，我们在 addMessage 里动态加按钮太麻烦
+                 // 方案：addMessage 只负责临时显示。存入 history 后，调用 renderHistory 重绘整个列表（包含按钮）
+                 renderHistory(); 
+            } else {
+                 // 打字机结束后会存 history
             }
-            addMessage('ai', reply); state.history.push({ role: 'assistant', content: reply }); saveState();
-        } catch (e) { addMessage('system', "❌ " + e.message); } 
-        finally { bar.classList.remove('active'); }
+
+        } catch (e) { 
+            thinkingBubble.remove(); 
+            if (e.name === 'AbortError') {
+                addMessage('system', '⏹ 已停止生成');
+            } else {
+                addMessage('system', "❌ " + e.message); 
+            }
+        } finally { 
+            bar.classList.remove('active'); st.innerText = "在线"; 
+            currentController = null;
+            toggleSendButton(false);
+        }
     }
 
-    function switchMode(mode) { timer.mode = mode; resetTimer(); document.getElementById('tab-pomodoro').className = mode === 'pomodoro' ? 'mode-tab active' : 'mode-tab'; document.getElementById('tab-stopwatch').className = mode === 'stopwatch' ? 'mode-tab active' : 'mode-tab'; document.getElementById('pomodoroInput').style.display = mode === 'pomodoro' ? 'flex' : 'none'; updateDisplay(); }
-    function validateTime() { const el = document.getElementById('customTimeInput'); let val = parseInt(el.value); if (isNaN(val) || val < 1) val = 1; el.value = val; resetTimer(); }
-    function toggleTimer() { const btn = document.getElementById('startBtn'); if (timer.isRunning) { clearInterval(timer.interval); timer.isRunning = false; btn.innerText = "继续"; } else { if (timer.mode === 'pomodoro' && timer.timeLeft <= 0) resetTimer(); timer.isRunning = true; btn.innerText = "暂停"; timer.interval = setInterval(() => { if (timer.mode === 'pomodoro') { if (timer.timeLeft > 0) { timer.timeLeft--; updateDisplay(); } else { finishPomodoro(); } } else { timer.elapsed++; updateDisplay(); } }, 1000); } }
-    function resetTimer() { clearInterval(timer.interval); timer.isRunning = false; if (timer.mode === 'pomodoro') { const mins = parseInt(document.getElementById('customTimeInput').value)||25; timer.timeLeft = mins * 60; } else { timer.elapsed = 0; } document.getElementById('startBtn').innerText = "开始"; updateDisplay(); }
-    function updateDisplay() { let s = timer.mode === 'pomodoro' ? timer.timeLeft : timer.elapsed; const m = Math.floor(s / 60).toString().padStart(2, '0'); const sec = (s % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `${m}:${sec}`; document.title = timer.isRunning ? `(${m}m) StudyPal` : 'StudyPal'; }
-    function finishPomodoro() { resetTimer(); const taskName = state.tasks.find(t => t.active)?.text || "无"; sendMessageInternal(`[系统通知] 番茄钟结束(任务:${taskName})。请考核我。`, true); alert("时间到！"); }
-
-    async function fetchModels() {
-        const key = state.apiKeys[state.provider]; const status = document.getElementById('fetchStatus');
-        if (!key) { alert("Key 为空"); return; } status.innerText = "获取中...";
-        try {
-            let url, headers = {};
-            if (state.provider === 'gemini') url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-            else {
-                let base = "";
-                if (state.provider === 'custom') base = state.baseUrl;
-                else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn";
-                else if (state.provider === 'deepseek') base = "https://api.deepseek.com";
-                else base = "https://api.openai.com";
-                if (!base.endsWith('/v1')) base += "/v1"; url = base + "/models"; headers['Authorization'] = `Bearer ${key}`;
-            }
-            const res = await fetch(url, { headers }); const data = await res.json();
-            let list = [];
-            if (data.models) list = data.models.map(m => m.name.replace('models/', '')); else if (data.data) list = data.data.map(m => m.id);
-            const dl = document.getElementById('modelList'); dl.innerHTML = '';
-            list.forEach(id => { const op = document.createElement('option'); op.value = id; dl.appendChild(op); });
-            status.innerText = `✅ 成功 (${list.length})`;
-        } catch (e) { status.innerText = "❌ 失败"; }
+    function typeWriterEffect(text) { 
+        // 临时显示，打完字再存入 history 并重绘
+        const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = 'message ai'; div.appendChild(msg); let i = 0; const speed = 20; 
+        
+        // 此时还没有存入 history，所以无法点击重试/删除。等打字完。
+        function type() { 
+            if (currentController && currentController.signal.aborted) return; // 停止打字
+            if (i < text.length) { msg.innerText += text.charAt(i); i++; div.scrollTop = div.scrollHeight; setTimeout(type, speed); } 
+            else { 
+                // 完成
+                state.history.push({ role: 'assistant', content: text });
+                saveState();
+                renderHistory(); // 重绘以显示 Markdown 和 按钮
+                msg.remove(); // 移除临时的
+            } 
+        } 
+        type(); 
     }
 
-    function addMessage(role, text) { const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = `message ${role}`; if (role === 'system') msg.innerHTML = text; else { try { msg.innerHTML = marked.parse(text); } catch (e) { msg.innerText = text; } } div.appendChild(msg); div.scrollTop = div.scrollHeight; }
-    async function sendMessage() { const input = document.getElementById('userInput'); const text = input.value.trim(); if (!text) return; input.value = ''; addMessage('user', text); state.history.push({ role: 'user', content: text }); saveState(); await sendMessageInternal(text); }
+    // --- 渲染消息 (带操作按钮) ---
+    function addMessage(role, text) { 
+        // 仅用于系统消息或临时显示。正式渲染走 renderHistory
+        const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = `message ${role}`; 
+        if (role === 'system') msg.innerHTML = text; 
+        else { try { msg.innerHTML = marked.parse(text); } catch (e) { msg.innerText = text; } } 
+        div.appendChild(msg); div.scrollTop = div.scrollHeight; 
+    }
     
+    function renderHistory() { 
+        const div = document.getElementById('chatHistory');
+        div.innerHTML = ''; 
+        state.history.forEach((m, index) => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${m.role === 'user' ? 'user' : 'ai'}`;
+            
+            // 内容
+            try { msgDiv.innerHTML = marked.parse(m.content); } catch { msgDiv.innerText = m.content; }
+            
+            // 操作栏
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'msg-actions';
+            
+            // 删除按钮 (所有消息都有)
+            const delBtn = document.createElement('div');
+            delBtn.className = 'msg-action-btn del';
+            delBtn.innerHTML = '×';
+            delBtn.title = '删除';
+            delBtn.onclick = () => deleteMessage(index);
+            actionsDiv.appendChild(delBtn);
+            
+            // 重试按钮 (仅 AI 消息且是最后一条时显示，或者所有 AI 消息都显示？通常是最后一条)
+            // 为了方便，给所有 AI 消息加重试也可以，但逻辑是“以此为上下文重试”。
+            // 这里简单实现：如果是 AI 消息，显示重试图标
+            if (m.role === 'assistant' || m.role === 'model') {
+                const retryBtn = document.createElement('div');
+                retryBtn.className = 'msg-action-btn';
+                retryBtn.innerHTML = '↺'; // 刷新图标
+                retryBtn.title = '重新生成';
+                retryBtn.onclick = () => {
+                    // 逻辑：删除当前这条 AI 消息，并触发重发
+                    // 注意：如果这不是最后一条，重发可能会导致乱序。
+                    // 简单处理：只允许重发最后一条 AI 消息
+                    if (index === state.history.length - 1) {
+                        regenerate();
+                    } else {
+                        alert("只能重新生成最后一条回复");
+                    }
+                };
+                // 只在最后一条显示重试比较合理
+                if (index === state.history.length - 1) {
+                    actionsDiv.appendChild(retryBtn);
+                }
+            }
+            
+            msgDiv.appendChild(actionsDiv);
+            div.appendChild(msgDiv);
+        });
+        div.scrollTop = div.scrollHeight;
+    }
+
+    async function sendMessage() { 
+        const input = document.getElementById('userInput'); const text = input.value.trim(); 
+        if (!text) return; 
+        input.value = ''; 
+        // 调整高度回初始
+        input.style.height = 'auto';
+        
+        // 推入历史
+        state.history.push({ role: 'user', content: text }); 
+        saveState(); 
+        renderHistory(); // 立即渲染用户消息
+        
+        await sendMessageInternal(text); 
+    }
+    
+    // ... (Presets, Export, Import, Reset, ToggleSettings, ClearHistory, SaveState, LoadState 同上) ...
     function renderPresets() { const c = document.getElementById('presetButtons'); c.innerHTML = ''; state.presets.forEach((p, i) => { const tag = document.createElement('div'); tag.className = 'preset-tag'; tag.innerHTML = `<span>${p.name}</span> <span class="del-btn">×</span>`; tag.onclick = () => { state.prompt = p.prompt; document.getElementById('systemPrompt').value = p.prompt; saveState(); }; tag.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); if(confirm("删除?")) { state.presets.splice(i,1); renderPresets(); saveState(); } }; c.appendChild(tag); }); }
     function saveCurrentAsPreset() { const name = document.getElementById('newPresetName').value.trim(); if(!name) return; state.presets.push({ name, prompt: document.getElementById('systemPrompt').value }); document.getElementById('newPresetName').value = ''; renderPresets(); saveState(); }
-    
-    // --- 修复：全量备份 ---
-    function exportData() { 
-        saveState(); // 先保存当前内存状态
-        const a = document.createElement('a'); 
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); 
-        a.download = "studypal_backup_v0.9.7.json"; 
-        a.click(); 
-    }
-    
-    // --- 修复：全量恢复 ---
-    function importData(input) { 
-        const f = input.files[0]; 
-        if(!f) return; 
-        const r = new FileReader(); 
-        r.onload = (e) => { 
-            try { 
-                const data = JSON.parse(e.target.result);
-                // 强行写入硬盘
-                localStorage.setItem('studyPal_v0.9.7', JSON.stringify(data));
-                alert("恢复成功，页面即将刷新...");
-                location.reload(); 
-            } catch(e){ alert("备份文件无效"); } 
-        }; 
-        r.readAsText(f); 
-    }
-    
-    function hardReset() { if(confirm("重置?")) { localStorage.removeItem('studyPal_v0.9.7'); location.reload(); } }
+    function exportData() { saveState(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v1.1.0.json"; a.click(); }
+    function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { try { const data = JSON.parse(e.target.result); localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); alert("恢复成功"); location.reload(); } catch(e){ alert("无效"); } }; r.readAsText(f); }
+    function hardReset() { if(confirm("重置?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
     function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
     function clearHistory() { if(confirm("清空?")) { state.history=[]; renderHistory(); saveState(); } }
-    function renderHistory() { document.getElementById('chatHistory').innerHTML=''; state.history.forEach(m=>addMessage(m.role==='user'?'user':'ai', m.content)); }
-    
-    function saveState() { 
-        state.model = document.getElementById('modelNameInput').value; 
-        state.prompt = document.getElementById('systemPrompt').value; 
-        // 使用最新版本 Key 0.9.7
-        localStorage.setItem('studyPal_v0.9.7', JSON.stringify(state)); 
-    }
-    
-    function loadState() { 
-        // 尝试加载新版数据
-        let s = localStorage.getItem('studyPal_v0.9.7'); 
-        // 兼容：如果没有新版，尝试加载旧版 v0.8.1 并迁移
-        if (!s) s = localStorage.getItem('studyPal_v0.8.1');
-        
-        if(s) state = { ...state, ...JSON.parse(s) }; 
-    }
+    function saveState() { state.model = document.getElementById('modelNameInput').value; state.prompt = document.getElementById('systemPrompt').value; state.useStream = document.getElementById('streamToggle').checked; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function loadState() { const s = localStorage.getItem(STORAGE_KEY); if(s) state = { ...state, ...JSON.parse(s) }; }
 </script>
 </body>
 </html>
