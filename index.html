@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>StudyPal v1.1.0</title>
+    <title>StudyPal v1.1.1</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        /* --- 核心变量 --- */
         :root {
             --primary: #007AFF;
             --primary-bg: rgba(0, 122, 255, 0.1);
             --bg-sidebar: #F2F2F7;
             --bg-main: #FFFFFF;
-            --text: #1C1C1E;
-            --text-secondary: #8E8E93;
+            --text: #1D1D1F;
+            --text-secondary: #86868B;
             --border: #E5E5EA;
             --sidebar-w: 340px;
             --radius: 12px;
@@ -63,15 +64,15 @@
         h1 { margin: 0 0 20px 0; font-size: 1.6rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: #000; font-weight: 700; }
         .ver { font-size: 0.7rem; background: rgba(0,0,0,0.06); padding: 4px 8px; border-radius: 6px; color: var(--text-secondary); font-weight: 600; }
 
-        /* 交互动效 */
+        /* 通用交互 */
         button, .folder-tab, .task-item, .preset-tag, .btn-svg, .mode-tab, .batch-btn, .btn-focus-mode, .wheel-item, .msg-action-btn {
             transition: var(--transition);
             cursor: pointer;
         }
         button:hover, .folder-tab:hover, .task-item:hover, .preset-tag:hover, .btn-svg:hover, .btn-focus-mode:hover, .msg-action-btn:hover {
             transform: translateY(-1px);
-            /* box-shadow: var(--shadow-md);  removed global shadow on hover for cleaner look */
-            filter: brightness(0.95);
+            box-shadow: var(--shadow-md);
+            filter: brightness(0.98);
         }
         button:active, .folder-tab:active, .task-item:active, .preset-tag:active, .btn-svg:active, .btn-focus-mode:active, .msg-action-btn:active {
             transform: scale(0.96) translateY(0);
@@ -83,9 +84,11 @@
         .btn-primary { background: var(--primary); color: white; border-radius: 12px; font-weight: 500; }
         .btn-primary:hover { background: #0062cc; }
         .btn-secondary { background: #FFFFFF; color: var(--text); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; }
+        .btn-secondary:hover { background: #F9F9F9; border-color: rgba(0,0,0,0.1); }
         .btn-sm { font-size: 0.85rem; padding: 8px 16px; }
         .btn-icon { width: 36px; height: 36px; border-radius: 50%; font-size: 1.2rem; }
-        /* 停止按钮样式 */
+        
+        /* 增量：停止按钮样式 */
         .btn-stop { background: #FF3B30 !important; color: white !important; }
         .btn-stop:hover { background: #d6332a !important; }
 
@@ -93,11 +96,11 @@
             border: 1px solid var(--border); background: #FFFFFF; padding: 10px 12px; 
             font-size: 0.9rem; color: var(--text); font-family: inherit; width: 100%; 
             border-radius: 10px; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-            transition: var(--transition); box-sizing: border-box; resize: none; /* 禁止手动拉伸 */
+            transition: var(--transition); box-sizing: border-box;
+            /* 增量：textarea 不允许手动拉伸 */
+            resize: none;
         }
-        input:focus, select:focus, textarea:focus { 
-            border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); 
-        }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); }
         .input-group { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
         .input-group button { flex-shrink: 0; }
 
@@ -165,46 +168,27 @@
         input:checked + .slider { background-color: var(--primary); }
         input:checked + .slider:before { transform: translateX(20px); }
 
-        /* 聊天区 (新功能样式) */
+        /* 聊天区 */
         .chat-container { flex: 1; display: flex; flex-direction: column; background: #FFFFFF; position: relative; }
         .chat-header { padding: 16px 24px; border-bottom: 1px solid #F2F2F7; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); z-index: 10; }
         .mobile-menu-btn { display: none; font-size: 1.4rem; cursor: pointer; padding: 5px; margin-right: 10px; color: var(--primary); }
         .chat-history { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        
-        .message { 
-            max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.02); position: relative; 
-        }
-        .message:hover .msg-actions { opacity: 1; } /* 悬停显示操作 */
-        
+        .message { max-width: 80%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.02); position: relative; }
+        .message:hover .msg-actions { opacity: 1; }
         .message.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
         .message.ai { align-self: flex-start; background: #F2F2F7; color: #000; border-bottom-left-radius: 4px; }
         .message.system { align-self: center; background: #F9F9F9; color: var(--text-secondary); font-size: 0.8rem; padding: 6px 12px; border-radius: 20px; margin: 10px 0; }
         .message pre { background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         
-        /* 消息操作栏 (删除/重试) */
-        .msg-actions {
-            position: absolute; top: -10px; right: -10px;
-            display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;
-            background: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding: 2px; border: 1px solid #eee;
-        }
-        /* 移动端总是显示操作栏(太小不好点，或者长按?) 为了简单，这里移动端可能需要一直显示或者点一下显示。
-           目前PC hover显示，移动端点击气泡显示比较好，这里简化为 hover */
-        
-        .msg-action-btn {
-            width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; color: #666; background: #fff;
-        }
+        /* 增量：消息操作栏样式 */
+        .msg-actions { position: absolute; top: -10px; right: -10px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; background: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 2px; border: 1px solid #eee; z-index: 5; }
+        .msg-action-btn { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666; background: #fff; }
         .msg-action-btn:hover { background: #f0f0f0; color: var(--primary); }
         .msg-action-btn.del:hover { color: #FF3B30; }
 
         .input-area { padding: 20px 24px; border-top: 1px solid #F2F2F7; display: flex; gap: 12px; background: #FFFFFF; flex-shrink: 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); align-items: flex-end;}
-        
-        /* 换行 Textarea 样式 */
-        #userInput { 
-            background: #F2F2F7; border-radius: 20px; padding: 12px 16px; font-size: 1rem; border: 1px solid transparent; 
-            min-height: 24px; max-height: 120px; overflow-y: auto; height: auto; line-height: 1.5;
-        }
+        /* 增量：多行输入框样式 */
+        #userInput { background: #F2F2F7; border-radius: 24px; padding: 14px 20px; font-size: 1rem; border: 1px solid transparent; max-height: 120px; overflow-y: auto; min-height: 24px; line-height: 1.5; height: auto; resize: none;}
         #userInput:focus { background: white; border-color: var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
         /* 专注模式遮罩 */
@@ -228,19 +212,18 @@
         .focus-overlay.dark-mode .focus-icon-btn { color: #888; }
         .focus-overlay.dark-mode .focus-icon-btn:hover { color: white; }
 
-        .loading-bar { height: 3px; width: 100%; position: absolute; top: 0; left: 0; display: none; background: rgba(0,122,255,0.1); }
-        .loading-bar.active { display: block; }
-        .loading-bar::after { content: ''; position: absolute; height: 100%; width: 30%; background: var(--primary); animation: load 1.5s infinite ease-in-out; }
-        @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
-        .thinking-bubble { display: inline-flex; align-items: center; gap: 4px; padding: 12px 18px; background: #F2F2F7; border-radius: 18px; border-bottom-left-radius: 4px; margin-bottom: 15px; align-self: flex-start; width: fit-content; }
-        .dot { width: 6px; height: 6px; background: #8E8E93; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
-        .dot:nth-child(1) { animation-delay: -0.32s; } .dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        
         /* 弹窗 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-box { background: #FFF; padding: 24px; border-radius: 20px; width: 85%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); transform: scale(0.95); animation: popIn 0.2s forwards; }
         @keyframes popIn { to { transform: scale(1); } }
+
+        .loading-bar { height: 3px; width: 100%; position: absolute; top: 0; left: 0; display: none; background: rgba(0,122,255,0.1); }
+        .loading-bar.active { display: block; }
+        .loading-bar::after { content: ''; position: absolute; height: 100%; width: 30%; background: var(--primary); animation: load 1.5s infinite ease-in-out; }
+        .thinking-bubble { display: inline-flex; align-items: center; gap: 4px; padding: 12px 18px; background: #F2F2F7; border-radius: 18px; border-bottom-left-radius: 4px; margin-bottom: 15px; align-self: flex-start; width: fit-content; }
+        .dot { width: 6px; height: 6px; background: #8E8E93; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; } .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -263,7 +246,7 @@
 <div class="modal-overlay" id="moveModal">
     <div class="modal-box">
         <h3 style="margin-top:0; font-size:1.1rem;">移动任务到...</h3>
-        <select id="moveTargetFolder" style="margin-bottom:20px; width:100%; padding:12px; background:#F2F2F7; border-radius:10px;"></select>
+        <select id="moveTargetFolder" style="margin-bottom:20px; width:100%; padding:12px; background:#F2F2F7; border-radius:10px; border:1px solid #E5E5EA;"></select>
         <div style="display:flex; justify-content:flex-end; gap:10px;">
             <button class="btn-secondary btn-sm" onclick="closeModal()">取消</button>
             <button class="btn-primary btn-sm" onclick="confirmMove()">移动</button>
@@ -272,7 +255,7 @@
 </div>
 
 <div class="sidebar" id="sidebar">
-    <h1>StudyPal <span class="ver">v1.1.0</span></h1>
+    <h1>StudyPal <span class="ver">v1.1.1</span></h1>
     
     <div class="task-section">
         <div class="section-header">
@@ -281,17 +264,21 @@
                 <button class="btn-secondary btn-sm" id="batchToggleBtn" onclick="toggleBatchMode()">多选</button>
             </div>
         </div>
+        
         <div class="folder-container">
             <div class="folder-bar" id="folderBar" style="display:contents;"></div>
             <button class="btn-secondary" onclick="addFolder()" style="width:28px;height:28px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
         </div>
+
         <div class="input-group" style="margin-bottom:15px; padding-right:4px;">
             <input type="text" id="newTaskInput" placeholder="添加新任务..." onkeypress="if(event.key==='Enter') addTask()">
             <button class="btn-primary btn-icon" onclick="addTask()" style="width:36px; height:36px; border-radius:8px; flex-shrink:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             </button>
         </div>
+        
         <ul class="task-list" id="taskListUi"></ul>
+
         <div class="batch-bar" id="batchBar">
             <span>已选 <span id="batchCount">0</span> 项</span>
             <div style="display:flex; gap:10px;">
@@ -305,16 +292,20 @@
         <div class="btn-focus-mode" onclick="toggleFocusMode()" title="进入专注模式">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
         </div>
+
         <div class="mode-tabs">
             <div class="mode-tab active" id="tab-pomodoro" onclick="switchMode('pomodoro')">专注</div>
             <div class="mode-tab" id="tab-stopwatch" onclick="switchMode('stopwatch')">正计时</div>
         </div>
+        
         <div class="timer-display" id="timerDisplay">25:00</div>
+        
         <div id="pomodoroInput">
             <div class="wheel-container">
                 <div class="wheel-scroll" id="wheelScroll"></div>
             </div>
         </div>
+
         <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <button class="btn-primary btn-sm" onclick="toggleTimer()" id="startBtn" style="padding:12px;">开始</button>
             <button class="btn-secondary btn-sm" onclick="resetTimer()" style="padding:12px;">重置</button>
@@ -332,36 +323,60 @@
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="#666"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
             </button>
         </div>
+
         <label>Prompt</label>
         <div class="input-group" style="margin-bottom:12px; padding:0;">
             <textarea id="systemPrompt" rows="2" onchange="saveState()" style="margin:0; padding:10px; border:none;"></textarea>
         </div>
+
         <div style="background:white; padding:16px; border-radius:16px; border:1px solid #E5E5EA; margin-bottom:20px;">
-            <div class="toggle-wrapper"><span>打字机效果</span><label class="toggle-switch"><input type="checkbox" id="streamToggle" onchange="saveState()"><span class="slider"></span></label></div>
+            <div class="toggle-wrapper">
+                <span>打字机效果</span>
+                <label class="toggle-switch"><input type="checkbox" id="streamToggle" onchange="saveState()"><span class="slider"></span></label>
+            </div>
+
             <label style="margin-top:0">模型服务商</label>
             <div class="input-group" style="margin-bottom:10px;">
                 <select id="providerSelect" onchange="changeProvider()" style="margin:0; border:none;">
-                    <option value="siliconflow">SiliconFlow</option><option value="deepseek">DeepSeek</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="custom">Custom</option>
+                    <option value="siliconflow">SiliconFlow</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="custom">Custom</option>
                 </select>
             </div>
-            <div id="customUrlGroup" style="display:none; margin-bottom:10px;"><div class="input-group"><input type="text" id="apiBaseUrl" placeholder="API URL" onchange="saveAPIKey()"></div></div>
-            <div class="input-group" style="margin-bottom:10px;"><input type="password" id="apiKeyInput" placeholder="API Key" onchange="saveAPIKey()"></div>
+            
+            <div id="customUrlGroup" style="display:none; margin-bottom:10px;">
+                <div class="input-group"><input type="text" id="apiBaseUrl" placeholder="API URL" onchange="saveAPIKey()"></div>
+            </div>
+            
+            <div class="input-group" style="margin-bottom:10px;">
+                <input type="password" id="apiKeyInput" placeholder="API Key" onchange="saveAPIKey()">
+            </div>
+            
             <label>模型 ID</label>
             <div class="api-row">
                 <div class="custom-dropdown-wrapper">
-                    <div class="input-group" style="margin:0; padding:4px 8px;"><input type="text" id="modelNameInput" placeholder="输入或选择..." onfocus="showDropdown()" oninput="saveModel()" autocomplete="off" style="margin:0;"></div>
+                    <div class="input-group" style="margin:0; padding:4px 8px;">
+                        <input type="text" id="modelNameInput" placeholder="输入或选择..." onfocus="showDropdown()" oninput="saveModel()" autocomplete="off" style="margin:0;">
+                    </div>
                     <div id="modelDropdown" class="model-dropdown"></div>
                 </div>
-                <button class="btn-svg" onclick="fetchModels()" title="拉取列表" style="flex-shrink:0;"><svg viewBox="0 0 24 24" width="20" height="20" fill="#555"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg></button>
+                <button class="btn-svg" onclick="fetchModels()" title="拉取列表" style="flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="#555"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                </button>
             </div>
             <small id="fetchStatus" style="font-size:0.7rem; color:#aaa; display:block; margin-top:4px; height:15px;"></small>
         </div>
+
         <div class="row" style="justify-content:space-between; margin-bottom:20px;">
             <button class="btn-secondary btn-sm" onclick="exportData()">备份数据</button>
             <button class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">恢复数据</button>
             <input type="file" id="importFile" style="display:none" onchange="importData(this)">
         </div>
-        <div style="text-align:center;"><span onclick="hardReset()" style="font-size:0.75rem; color:#FF3B30; cursor:pointer; font-weight:500;">重置所有数据</span></div>
+        <div style="text-align:center;">
+            <span onclick="hardReset()" style="font-size:0.75rem; color:#FF3B30; cursor:pointer; font-weight:500;">重置所有数据</span>
+        </div>
     </div>
 </div>
 
@@ -391,7 +406,7 @@
         { name: "法学", prompt: "你是一位资深的中国法学教授。请用苏格拉底教学法，通过反问来检验我对法律概念的理解。" }
     ];
 
-    const STORAGE_KEY = 'studyPal_v1.1.0';
+    const STORAGE_KEY = 'studyPal_v1.1.1';
 
     let state = {
         history: [], tasks: [], folders: [], currentFolderId: 'default',
@@ -404,14 +419,13 @@
 
     let isBatchMode = false; 
     let timer = { interval: null, timeLeft: 25 * 60, elapsed: 0, isRunning: false, mode: 'pomodoro' };
-    
-    // --- 新增：AbortController 用于停止生成 ---
     let currentController = null;
 
     function initWheel() {
         const wheel = document.getElementById('wheelScroll');
         wheel.innerHTML = '';
         const padTop = document.createElement('div'); padTop.style.height = '50px'; wheel.appendChild(padTop);
+        
         for(let set=0; set<3; set++) {
             for(let i=1; i<=120; i++) {
                 const div = document.createElement('div');
@@ -422,12 +436,14 @@
         }
         const padBot = document.createElement('div'); padBot.style.height = '50px'; wheel.appendChild(padBot);
         wheel.scrollTop = (25-1 + 120) * 40; updateWheelSelect(25);
+
         let timeout;
         wheel.addEventListener('scroll', () => {
             clearTimeout(timeout);
             const totalH = 120 * 40;
             if (wheel.scrollTop < 10) wheel.scrollTop += totalH;
             else if (wheel.scrollTop > totalH * 2 - 100) wheel.scrollTop -= totalH;
+
             timeout = setTimeout(() => {
                 const index = Math.round(wheel.scrollTop / 40);
                 wheel.scrollTo({ top: index * 40, behavior: 'smooth' });
@@ -445,34 +461,40 @@
     }
 
     window.onload = () => {
-        loadState();
-        if(state.tasks.length===0) { 
-            const old=localStorage.getItem('studyPal_v1.0.0') || localStorage.getItem('studyPal_v0.9.20'); 
-            if(old) try{Object.assign(state, JSON.parse(old))}catch(e){} 
+        try {
+            loadState();
+            if(state.tasks.length===0) { 
+                const old=localStorage.getItem('studyPal_v1.0.0') || localStorage.getItem('studyPal_v0.9.20'); 
+                if(old) try{Object.assign(state, JSON.parse(old))}catch(e){} 
+            }
+            if(!state.providerModels) state.providerModels = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini', custom: '' };
+            if(!state.folders || state.folders.length===0) { state.folders=[{id:'default', name:'默认'}]; state.currentFolderId='default'; }
+            if(!state.apiKeys.siliconflow && TEST_KEY) state.apiKeys.siliconflow=TEST_KEY;
+            if(!state.presets || state.presets.length===0) state.presets=DEFAULT_PRESETS;
+
+            document.getElementById('providerSelect').value = state.provider;
+            document.getElementById('streamToggle').checked = state.useStream !== false;
+            
+            initWheel();
+            updateProviderUI(); renderFolders(); renderTasks(); renderPresets(); renderHistory(); switchMode(timer.mode);
+            
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.custom-dropdown-wrapper') && !e.target.closest('.btn-svg')) document.getElementById('modelDropdown').classList.remove('show');
+            });
+
+            const tx = document.getElementById('userInput');
+            tx.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+        } catch (e) {
+            console.error("Init error:", e);
+            alert("启动失败，建议重置数据");
         }
-        if(!state.providerModels) state.providerModels = { siliconflow: 'deepseek-ai/DeepSeek-V3.2-Exp', deepseek: 'deepseek-chat', gemini: 'gemini-1.5-flash', openai: 'gpt-4o-mini', custom: '' };
-        if(!state.folders || state.folders.length===0) { state.folders=[{id:'default', name:'默认'}]; state.currentFolderId='default'; }
-        if(!state.apiKeys.siliconflow) state.apiKeys.siliconflow=TEST_KEY;
-        if(!state.presets || state.presets.length===0) state.presets=DEFAULT_PRESETS;
-
-        document.getElementById('providerSelect').value = state.provider;
-        document.getElementById('streamToggle').checked = state.useStream !== false;
-        
-        initWheel();
-        updateProviderUI(); renderFolders(); renderTasks(); renderPresets(); renderHistory(); switchMode(timer.mode);
-        
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.custom-dropdown-wrapper') && !e.target.closest('.btn-svg')) document.getElementById('modelDropdown').classList.remove('show');
-        });
-
-        // Textarea auto-resize
-        const tx = document.getElementById('userInput');
-        tx.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
     };
 
+    // ... [计时器、任务管理等逻辑与 v1.0.0 完全一致，保持不动] ...
+    
     function toggleFocusMode() {
         const overlay = document.getElementById('focusOverlay');
         const card = document.getElementById('timerCard');
@@ -505,7 +527,82 @@
     function saveModel() { state.providerModels[state.provider] = document.getElementById('modelNameInput').value; saveState(); }
     function showDropdown() { const d = document.getElementById('modelDropdown'); if(d.children.length>0) d.classList.add('show'); }
     function selectModel(id) { document.getElementById('modelNameInput').value = id; state.providerModels[state.provider] = id; saveState(); document.getElementById('modelDropdown').classList.remove('show'); }
+async function fetchModels() {
+        const p = state.provider;
+        const key = state.apiKeys[p];
+        const statusEl = document.getElementById('fetchStatus');
+        const dropdown = document.getElementById('modelDropdown');
 
+        if (!key && p !== 'custom') {
+            alert("请先在上方填入 API Key");
+            return;
+        }
+
+        statusEl.innerText = "正在连接...";
+        statusEl.style.color = "#888";
+        dropdown.innerHTML = '';
+
+        let url = '';
+        let headers = {};
+
+        try {
+            if (p === 'gemini') {
+                url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+            } else {
+                let base = "";
+                if (p === 'custom') base = state.baseUrl || "";
+                else if (p === 'siliconflow') base = "https://api.siliconflow.cn";
+                else if (p === 'deepseek') base = "https://api.deepseek.com";
+                else base = "https://api.openai.com";
+
+                if (!base.endsWith('/v1')) base = base.replace(/\/+$/, "") + "/v1";
+                url = base + "/models";
+                headers['Authorization'] = `Bearer ${key}`;
+            }
+
+            const res = await fetch(url, { method: 'GET', headers });
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error.message || "拉取失败");
+
+            let models = [];
+            if (p === 'gemini') {
+                if (!data.models) throw new Error("未找到模型数据");
+                models = data.models.map(m => m.name.replace(/^models\//, ''));
+            } else {
+                if (Array.isArray(data.data)) {
+                    models = data.data.map(m => m.id);
+                } else {
+                    throw new Error("返回格式无法识别");
+                }
+            }
+
+            if (models.length === 0) {
+                statusEl.innerText = "未找到可用模型";
+                return;
+            }
+
+            models.sort().forEach(id => {
+                const div = document.createElement('div');
+                div.className = 'model-option';
+                div.innerText = id;
+                div.onclick = (e) => { 
+                    e.stopPropagation();
+                    selectModel(id); 
+                };
+                dropdown.appendChild(div);
+            });
+
+            dropdown.classList.add('show');
+            statusEl.innerText = `成功加载 ${models.length} 个模型`;
+            statusEl.style.color = "green";
+
+        } catch (e) {
+            console.error(e);
+            statusEl.innerText = "错误: " + e.message;
+            statusEl.style.color = "#FF3B30";
+        }
+    }
     function switchMode(mode) { 
         timer.mode = mode; resetTimer(); 
         document.getElementById('tab-pomodoro').className = mode==='pomodoro'?'mode-tab active':'mode-tab';
@@ -542,7 +639,17 @@
             ul.appendChild(li);
         });
     }
-    function addTask(txt, targetId, isFromAI=false) { const input = document.getElementById('newTaskInput'); const t = txt || input.value.trim(); if (!t) return; const folder = targetId || state.currentFolderId; const dup = state.tasks.some(k => k.text === t && (k.folderId||'default') === folder && !k.done); if (dup) { if (isFromAI) return; if (!confirm("重复添加?")) return; } state.tasks.forEach(k => k.active = false); state.tasks.push({ id: Date.now(), text: t, done: false, active: true, selected: false, folderId: folder }); if (!txt) input.value = ''; renderTasks(); saveState(); }
+    // --- 任务防重 ---
+    function addTask(txt, targetId, isFromAI=false) { 
+        const input = document.getElementById('newTaskInput'); const t = txt || input.value.trim(); 
+        if (!t) return; 
+        const folder = targetId || state.currentFolderId; 
+        const dup = state.tasks.some(k => k.text === t && (k.folderId||'default') === folder && !k.done); 
+        if (dup) { if (isFromAI) return; if (!confirm("重复添加?")) return; } 
+        state.tasks.forEach(k => k.active = false); 
+        state.tasks.push({ id: Date.now(), text: t, done: false, active: true, selected: false, folderId: folder }); 
+        if (!txt) input.value = ''; renderTasks(); saveState(); 
+    }
     function toggleDone(id, e) { e.stopPropagation(); const t = state.tasks.find(k=>k.id===id); if(t) t.done=!t.done; renderTasks(); saveState(); }
     function delTask(id, e) { e.stopPropagation(); state.tasks = state.tasks.filter(k=>k.id!==id); renderTasks(); saveState(); }
     function batchDelete() { if(!confirm("删除选中?")) return; state.tasks = state.tasks.filter(t => !(t.selected && (t.folderId||'default') === state.currentFolderId)); renderTasks(); saveState(); }
@@ -554,267 +661,107 @@
     function confirmMove() { const targetId = document.getElementById('moveTargetFolder').value; state.tasks.forEach(t => { if ((t.folderId||'default') === state.currentFolderId && t.selected) { t.folderId = targetId; t.selected = false; } }); closeModal(); renderTasks(); saveState(); }
     function saveAPIKey() { state.apiKeys[state.provider] = document.getElementById('apiKeyInput').value; if (state.provider === 'custom') state.baseUrl = document.getElementById('apiBaseUrl').value; saveState(); }
     
-    // --- 新增：输入框按键处理 ---
-    function handleInputKey(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault(); // 阻止默认换行
-            if (currentController) stopGeneration(); // 如果正在生成，Enter键作为停止
-            else sendMessage();
-        }
-    }
-    
-    // --- 新增：点击发送按钮逻辑 ---
-    function handleSendClick() {
-        if (currentController) stopGeneration();
-        else sendMessage();
-    }
-    
-    // --- 新增：停止生成 ---
-    function stopGeneration() {
-        if (currentController) {
-            currentController.abort();
-            currentController = null;
-            toggleSendButton(false);
-            document.getElementById('loadingBar').classList.remove('active');
-            document.getElementById('statusText').innerText = "已停止";
-            // 移除思考气泡
-            const bubble = document.querySelector('.thinking-bubble');
-            if (bubble) bubble.remove();
-        }
-    }
-    
-    // --- 新增：切换发送/停止按钮 ---
-    function toggleSendButton(isGenerating) {
-        const sendIcon = document.getElementById('iconSend');
-        const stopIcon = document.getElementById('iconStop');
-        const btn = document.getElementById('sendBtn');
-        
-        if (isGenerating) {
-            sendIcon.style.display = 'none';
-            stopIcon.style.display = 'block';
-            btn.classList.add('btn-stop');
-        } else {
-            sendIcon.style.display = 'block';
-            stopIcon.style.display = 'none';
-            btn.classList.remove('btn-stop');
-        }
-    }
-
-    // --- 新增：重新生成 ---
-    function regenerate() {
-        // 找到最后一条 AI 消息
-        const lastIdx = state.history.findLastIndex(m => m.role === 'assistant' || m.role === 'model');
-        if (lastIdx === -1) return;
-        
-        // 如果最后一条是 AI，它的上一条应该是 User
-        // 我们删除这条 AI 消息
-        state.history.splice(lastIdx, 1);
-        renderHistory();
-        
-        // 拿到现在最新的 User 消息内容重新发送
-        const lastUserMsg = state.history[state.history.length - 1];
-        if (lastUserMsg && (lastUserMsg.role === 'user')) {
-            // 重新发送时不添加新 User 消息，而是直接调接口
-            sendMessageInternal(lastUserMsg.content, true); // true 表示不再次在 UI 显示 User 消息
-        }
-    }
-    
-    // --- 新增：删除单条消息 ---
-    function deleteMessage(index) {
-        if (confirm("删除这条消息？")) {
-            state.history.splice(index, 1);
-            saveState();
-            renderHistory();
-        }
-    }
+    // --- 增量：聊天控制 ---
+    function handleInputKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (currentController) stopGeneration(); else sendMessage(); } }
+    function handleSendClick() { if (currentController) stopGeneration(); else sendMessage(); }
+    function stopGeneration() { if (currentController) { currentController.abort(); currentController = null; toggleSendButton(false); document.getElementById('loadingBar').classList.remove('active'); document.getElementById('statusText').innerText = "已停止"; const bubble = document.querySelector('.thinking-bubble'); if (bubble) bubble.remove(); } }
+    function toggleSendButton(isGenerating) { const sendIcon = document.getElementById('iconSend'); const stopIcon = document.getElementById('iconStop'); const btn = document.getElementById('sendBtn'); if (isGenerating) { sendIcon.style.display = 'none'; stopIcon.style.display = 'block'; btn.classList.add('btn-stop'); } else { sendIcon.style.display = 'block'; stopIcon.style.display = 'none'; btn.classList.remove('btn-stop'); } }
+    function regenerate() { const lastIdx = state.history.findLastIndex(m => m.role === 'assistant' || m.role === 'model'); if (lastIdx === -1) return; state.history.splice(lastIdx, 1); renderHistory(); const lastUserMsg = state.history[state.history.length - 1]; if (lastUserMsg && (lastUserMsg.role === 'user')) { sendMessageInternal(lastUserMsg.content, true); } }
+    function deleteMessage(index) { if (confirm("删除这条消息？")) { state.history.splice(index, 1); saveState(); renderHistory(); } }
 
     async function sendMessageInternal(text, isReSend = false) {
-        // 初始化 AbortController
         currentController = new AbortController();
         toggleSendButton(true);
-
         const bar = document.getElementById('loadingBar'); bar.classList.add('active');
         const st = document.getElementById('statusText'); st.innerText = "思考中...";
-        
         let apiHistory = JSON.parse(JSON.stringify(state.history));
+        if (!isReSend) { /* 常规流程 */ } 
         
-        // 如果不是重发（正常发送），才处理 UI 显示和 history 更新
-        // 但这里逻辑稍作调整：sendMessage 已经更新了 history
-        // 这里 apiHistory 构造时，如果 isReSend 为 true，说明 history 已经是准确的了（因为刚刚删了最后一条 AI）
-        
-        // 系统提示
-        if (!isReSend) {
-            // 常规流程，sendMessage 已经把 user 消息推进去了
-        } else {
-            // 重发流程，user 消息已经在 history 里了，这里不需要额外操作
-        }
-
         const chatHistory = document.getElementById('chatHistory');
         const thinkingBubble = document.createElement('div'); thinkingBubble.className = 'thinking-bubble'; thinkingBubble.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div>`; chatHistory.appendChild(thinkingBubble); chatHistory.scrollTop = chatHistory.scrollHeight;
-        
         const sys = state.prompt + "\n[INSTRUCTION]: If user wants to add a task, append: [ADD_TASK: Exact Task Name]";
-        
         try {
             let url, headers = { 'Content-Type': 'application/json' }, body; const currentKey = state.apiKeys[state.provider]; if (!currentKey) throw new Error("请设置 Key"); const currentModel = state.providerModels[state.provider];
+            if (state.provider === 'gemini') { url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentKey}`; const contents = [{ role: 'user', parts: [{ text: "System: " + sys }] }, ...apiHistory.map(m => ({ role: m.role==='user'?'user':'model', parts: [{ text: m.content }] }))]; body = JSON.stringify({ contents }); }
+            else { let base = ""; if (state.provider === 'custom') base = state.baseUrl; else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn"; else if (state.provider === 'deepseek') base = "https://api.deepseek.com"; else base = "https://api.openai.com"; if (!base.endsWith('/v1')) base += "/v1"; url = base + "/chat/completions"; headers['Authorization'] = `Bearer ${currentKey}`; const messages = [{ role: 'system', content: sys }, ...apiHistory]; body = JSON.stringify({ model: currentModel, messages, temperature: 0.7 }); }
             
-            // 构建请求体 (Common)
-            let messagesPayload = [];
-            if (state.provider === 'gemini') {
-                 url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentKey}`;
-                 const contents = [{ role: 'user', parts: [{ text: "System: " + sys }] }, ...apiHistory.map(m => ({ role: m.role==='user'?'user':'model', parts: [{ text: m.content }] }))];
-                 body = JSON.stringify({ contents });
-            } else {
-                 let base = ""; if (state.provider === 'custom') base = state.baseUrl; else if (state.provider === 'siliconflow') base = "https://api.siliconflow.cn"; else if (state.provider === 'deepseek') base = "https://api.deepseek.com"; else base = "https://api.openai.com"; if (!base.endsWith('/v1')) base += "/v1"; url = base + "/chat/completions"; headers['Authorization'] = `Bearer ${currentKey}`;
-                 const messages = [{ role: 'system', content: sys }, ...apiHistory];
-                 body = JSON.stringify({ model: currentModel, messages, temperature: 0.7 });
-            }
-
-            const res = await fetch(url, { 
-                method: 'POST', 
-                headers, 
-                body,
-                signal: currentController.signal // 绑定信号
-            });
-            
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message);
+            const res = await fetch(url, { method: 'POST', headers, body, signal: currentController.signal });
+            const data = await res.json(); if (data.error) throw new Error(data.error.message);
             
             let reply = (state.provider === 'gemini') ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
             thinkingBubble.remove();
             const match = reply.match(/\[ADD_TASK:\s*(.*?)\]/); if (match) { const newTask = match[1].trim(); addTask(newTask, 'default', true); reply = reply.replace(match[0], "").trim(); addMessage('system', `✨ AI 添加: "${newTask}"`); }
             
             if (state.useStream) typeWriterEffect(reply); 
-            else addMessage('ai', reply); // 此时 renderHistory 会被调用或者手动 push
-            
-            // 注意：typeWriterEffect 是视觉效果，数据还是要存
-            if (!state.useStream) {
-                 state.history.push({ role: 'assistant', content: reply });
-                 saveState();
-                 // 因为 renderHistory 是全量渲染，这里为了性能只 push 了数据，需要刷新视图显示操作按钮
-                 // 但 addMessage 只加了 DOM。为了显示“操作按钮”，最好重绘一下最后一条，或者 addMessage 支持渲染按钮
-                 // 简单起见，addMessage 改良支持 HTML，我们在 addMessage 里动态加按钮太麻烦
-                 // 方案：addMessage 只负责临时显示。存入 history 后，调用 renderHistory 重绘整个列表（包含按钮）
-                 renderHistory(); 
-            } else {
-                 // 打字机结束后会存 history
-            }
+            else { state.history.push({ role: 'assistant', content: reply }); saveState(); renderHistory(); }
 
         } catch (e) { 
             thinkingBubble.remove(); 
-            if (e.name === 'AbortError') {
-                addMessage('system', '⏹ 已停止生成');
-            } else {
-                addMessage('system', "❌ " + e.message); 
-            }
+            if (e.name === 'AbortError') addMessage('system', '⏹ 已停止');
+            else addMessage('system', "❌ " + e.message); 
         } finally { 
             bar.classList.remove('active'); st.innerText = "在线"; 
-            currentController = null;
-            toggleSendButton(false);
+            currentController = null; toggleSendButton(false);
         }
     }
 
     function typeWriterEffect(text) { 
-        // 临时显示，打完字再存入 history 并重绘
         const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = 'message ai'; div.appendChild(msg); let i = 0; const speed = 20; 
-        
-        // 此时还没有存入 history，所以无法点击重试/删除。等打字完。
         function type() { 
-            if (currentController && currentController.signal.aborted) return; // 停止打字
+            if (currentController && currentController.signal.aborted) return;
             if (i < text.length) { msg.innerText += text.charAt(i); i++; div.scrollTop = div.scrollHeight; setTimeout(type, speed); } 
-            else { 
-                // 完成
-                state.history.push({ role: 'assistant', content: text });
-                saveState();
-                renderHistory(); // 重绘以显示 Markdown 和 按钮
-                msg.remove(); // 移除临时的
-            } 
+            else { state.history.push({ role: 'assistant', content: text }); saveState(); renderHistory(); msg.remove(); } 
         } 
         type(); 
     }
 
-    // --- 渲染消息 (带操作按钮) ---
     function addMessage(role, text) { 
-        // 仅用于系统消息或临时显示。正式渲染走 renderHistory
         const div = document.getElementById('chatHistory'); const msg = document.createElement('div'); msg.className = `message ${role}`; 
-        if (role === 'system') msg.innerHTML = text; 
-        else { try { msg.innerHTML = marked.parse(text); } catch (e) { msg.innerText = text; } } 
+        if (role === 'system') msg.innerHTML = text; else { try { msg.innerHTML = marked.parse(text); } catch (e) { msg.innerText = text; } } 
         div.appendChild(msg); div.scrollTop = div.scrollHeight; 
     }
     
+    // 增量：渲染历史带按钮
     function renderHistory() { 
-        const div = document.getElementById('chatHistory');
-        div.innerHTML = ''; 
+        const div = document.getElementById('chatHistory'); div.innerHTML = ''; 
         state.history.forEach((m, index) => {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${m.role === 'user' ? 'user' : 'ai'}`;
-            
-            // 内容
+            const msgDiv = document.createElement('div'); msgDiv.className = `message ${m.role === 'user' ? 'user' : 'ai'}`;
             try { msgDiv.innerHTML = marked.parse(m.content); } catch { msgDiv.innerText = m.content; }
             
-            // 操作栏
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'msg-actions';
-            
-            // 删除按钮 (所有消息都有)
-            const delBtn = document.createElement('div');
-            delBtn.className = 'msg-action-btn del';
-            delBtn.innerHTML = '×';
-            delBtn.title = '删除';
-            delBtn.onclick = () => deleteMessage(index);
-            actionsDiv.appendChild(delBtn);
-            
-            // 重试按钮 (仅 AI 消息且是最后一条时显示，或者所有 AI 消息都显示？通常是最后一条)
-            // 为了方便，给所有 AI 消息加重试也可以，但逻辑是“以此为上下文重试”。
-            // 这里简单实现：如果是 AI 消息，显示重试图标
+            const actionsDiv = document.createElement('div'); actionsDiv.className = 'msg-actions';
+            const delBtn = document.createElement('div'); delBtn.className = 'msg-action-btn del'; delBtn.innerHTML = '×'; delBtn.title = '删除'; delBtn.onclick = () => deleteMessage(index); actionsDiv.appendChild(delBtn);
             if (m.role === 'assistant' || m.role === 'model') {
-                const retryBtn = document.createElement('div');
-                retryBtn.className = 'msg-action-btn';
-                retryBtn.innerHTML = '↺'; // 刷新图标
-                retryBtn.title = '重新生成';
-                retryBtn.onclick = () => {
-                    // 逻辑：删除当前这条 AI 消息，并触发重发
-                    // 注意：如果这不是最后一条，重发可能会导致乱序。
-                    // 简单处理：只允许重发最后一条 AI 消息
-                    if (index === state.history.length - 1) {
-                        regenerate();
-                    } else {
-                        alert("只能重新生成最后一条回复");
-                    }
-                };
-                // 只在最后一条显示重试比较合理
                 if (index === state.history.length - 1) {
-                    actionsDiv.appendChild(retryBtn);
+                    const retryBtn = document.createElement('div'); retryBtn.className = 'msg-action-btn'; retryBtn.innerHTML = '↺'; retryBtn.title = '重试';
+                    retryBtn.onclick = () => regenerate(); actionsDiv.appendChild(retryBtn);
                 }
             }
-            
-            msgDiv.appendChild(actionsDiv);
-            div.appendChild(msgDiv);
+            msgDiv.appendChild(actionsDiv); div.appendChild(msgDiv);
         });
         div.scrollTop = div.scrollHeight;
     }
 
     async function sendMessage() { 
         const input = document.getElementById('userInput'); const text = input.value.trim(); 
-        if (!text) return; 
-        input.value = ''; 
-        // 调整高度回初始
-        input.style.height = 'auto';
-        
-        // 推入历史
-        state.history.push({ role: 'user', content: text }); 
-        saveState(); 
-        renderHistory(); // 立即渲染用户消息
-        
-        await sendMessageInternal(text); 
+        if (!text) return; input.value = ''; input.style.height = 'auto';
+        state.history.push({ role: 'user', content: text }); saveState(); renderHistory(); await sendMessageInternal(text); 
     }
     
-    // ... (Presets, Export, Import, Reset, ToggleSettings, ClearHistory, SaveState, LoadState 同上) ...
     function renderPresets() { const c = document.getElementById('presetButtons'); c.innerHTML = ''; state.presets.forEach((p, i) => { const tag = document.createElement('div'); tag.className = 'preset-tag'; tag.innerHTML = `<span>${p.name}</span> <span class="del-btn">×</span>`; tag.onclick = () => { state.prompt = p.prompt; document.getElementById('systemPrompt').value = p.prompt; saveState(); }; tag.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); if(confirm("删除?")) { state.presets.splice(i,1); renderPresets(); saveState(); } }; c.appendChild(tag); }); }
     function saveCurrentAsPreset() { const name = document.getElementById('newPresetName').value.trim(); if(!name) return; state.presets.push({ name, prompt: document.getElementById('systemPrompt').value }); document.getElementById('newPresetName').value = ''; renderPresets(); saveState(); }
-    function exportData() { saveState(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v1.1.0.json"; a.click(); }
+    function exportData() { saveState(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: 'application/json' })); a.download = "studypal_backup_v1.1.1.json"; a.click(); }
     function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { try { const data = JSON.parse(e.target.result); localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); alert("恢复成功"); location.reload(); } catch(e){ alert("无效"); } }; r.readAsText(f); }
     function hardReset() { if(confirm("重置?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
     function toggleSettings() { const el = document.getElementById('settingsGroup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
+function openMobileSidebar() {
+        document.getElementById('sidebar').classList.add('open');
+        document.getElementById('mobileOverlay').classList.add('show');  
+    }
+
+    function closeMobileSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('mobileOverlay').classList.remove('show');
+    }
     function clearHistory() { if(confirm("清空?")) { state.history=[]; renderHistory(); saveState(); } }
     function saveState() { state.model = document.getElementById('modelNameInput').value; state.prompt = document.getElementById('systemPrompt').value; state.useStream = document.getElementById('streamToggle').checked; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function loadState() { const s = localStorage.getItem(STORAGE_KEY); if(s) state = { ...state, ...JSON.parse(s) }; }
